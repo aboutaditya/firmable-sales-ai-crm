@@ -48,6 +48,8 @@ def current_user(
         algorithm = str(header.get("alg", ""))
         unverified_claims = jwt.decode(token, options={"verify_signature": False})
         issuer = settings.supabase_jwt_issuer
+        import sys
+        print(f"DEBUG: issuer={issuer}, token_iss={unverified_claims.get('iss')}", file=sys.stderr)
         if issuer and unverified_claims.get("iss") != issuer:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid bearer token")
 
