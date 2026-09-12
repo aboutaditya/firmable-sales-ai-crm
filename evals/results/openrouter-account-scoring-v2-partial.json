@@ -1,0 +1,25 @@
+{
+  "comparison": {
+    "high_priority_f1": 0.063492,
+    "high_priority_precision": -0.077922,
+    "high_priority_recall": 0.285714,
+    "priority_accuracy": -0.055556,
+    "score_mae": -2.666667
+  },
+  "examples": 18,
+  "high_priority_f1": 0.7777777777777778,
+  "high_priority_precision": 0.6363636363636364,
+  "high_priority_recall": 1.0,
+  "previous": {
+    "examples": 18,
+    "high_priority_f1": 0.7142857142857143,
+    "high_priority_precision": 0.7142857142857143,
+    "high_priority_recall": 0.7142857142857143,
+    "priority_accuracy": 0.6666666666666666,
+    "prompt_version": "account-scoring-v1-18subset",
+    "score_mae": 12.88888888888889
+  },
+  "priority_accuracy": 0.6111111111111112,
+  "prompt_version": "account-scoring-v2-partial",
+  "score_mae": 10.222222222222221
+}

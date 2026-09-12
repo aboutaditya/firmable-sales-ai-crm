@@ -1,0 +1,113 @@
+{
+  "info": {
+    "name": "Sales Intelligence API",
+    "description": "Collection for the Sales Intelligence FastAPI service. Local demo mode works with an empty access token when AUTH_REQUIRED=false.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8000/api/v1" },
+    { "key": "companyId", "value": "acme.com" },
+    { "key": "accessToken", "value": "" },
+    { "key": "cursor", "value": "" },
+    { "key": "assignedUserId", "value": "sales-user-1" },
+    { "key": "teamId", "value": "team-a" }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      { "key": "token", "value": "{{accessToken}}", "type": "string" }
+    ]
+  },
+  "event": [
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "pm.test('Request completed', function () { pm.expect(pm.response.code).to.be.below(500); });",
+          "if (pm.response.code === 200) { try { const body = pm.response.json(); if (body.next_cursor) pm.collectionVariables.set('cursor', body.next_cursor); } catch (e) {} }"
+        ]
+      }
+    }
+  ],
+  "item": [
+    {
+      "name": "System",
+      "item": [
+        {
+          "name": "Health",
+          "request": { "method": "GET", "header": [], "url": "{{baseUrl}}/health" }
+        },
+        {
+          "name": "Liveness",
+          "request": { "method": "GET", "header": [], "url": "{{baseUrl}}/health/live" }
+        },
+        {
+          "name": "Readiness",
+          "request": { "method": "GET", "header": [], "url": "{{baseUrl}}/health/ready" }
+        }
+      ]
+    },
+    {
+      "name": "Companies",
+      "item": [
+        {
+          "name": "List companies",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/companies?limit=20&offset=0", "host": ["{{baseUrl}}"], "path": ["companies"], "query": [{ "key": "limit", "value": "20" }, { "key": "offset", "value": "0" }] }
+          }
+        },
+        {
+          "name": "List companies - filters",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/companies?country=US&min_score=40&industry=technology&min_employee_count=100&signal=critical&signal=rdp&limit=20", "host": ["{{baseUrl}}"], "path": ["companies"], "query": [
+              { "key": "country", "value": "US" }, { "key": "min_score", "value": "40" }, { "key": "industry", "value": "technology" }, { "key": "min_employee_count", "value": "100" }, { "key": "signal", "value": "critical" }, { "key": "signal", "value": "rdp" }, { "key": "limit", "value": "20" }
+            ] }
+          }
+        },
+        {
+          "name": "List companies - next cursor",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/companies?limit=20&cursor={{cursor}}", "host": ["{{baseUrl}}"], "path": ["companies"], "query": [{ "key": "limit", "value": "20" }, { "key": "cursor", "value": "{{cursor}}" }] }
+          }
+        },
+        {
+          "name": "Get company",
+          "request": { "method": "GET", "header": [], "url": "{{baseUrl}}/companies/{{companyId}}" }
+        },
+        {
+          "name": "Assign company",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"user_id\": \"{{assignedUserId}}\",\n  \"team_id\": \"{{teamId}}\"\n}" },
+            "url": "{{baseUrl}}/companies/{{companyId}}/assign"
+          }
+        }
+      ]
+    },
+    {
+      "name": "AI",
+      "item": [
+        {
+          "name": "Assess company",
+          "request": { "method": "POST", "header": [], "url": "{{baseUrl}}/companies/{{companyId}}/assess" }
+        },
+        {
+          "name": "Generate company summary",
+          "request": { "method": "POST", "header": [], "url": "{{baseUrl}}/companies/{{companyId}}/summary" }
+        },
+        {
+          "name": "Generate outreach draft",
+          "request": { "method": "POST", "header": [], "url": "{{baseUrl}}/companies/{{companyId}}/outreach" }
+        }
+      ]
+    }
+  ]
+}

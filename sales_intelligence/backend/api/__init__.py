@@ -1,0 +1,1 @@
+"""HTTP API infrastructure: auth, dependencies, middleware, composition."""

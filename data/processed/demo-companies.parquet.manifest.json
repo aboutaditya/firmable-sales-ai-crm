@@ -1,0 +1,12 @@
+{
+  "company_count": 9,
+  "created_at": "2026-09-11T20:11:05.695655+00:00",
+  "dataset_version": "demo-v1",
+  "format": "parquet",
+  "output": "data/processed/demo-companies.parquet",
+  "processed_count": 15,
+  "run_id": "20260911T201105.130522Z",
+  "score_version": "v1",
+  "source": "data/demo/observations.jsonl",
+  "source_checksum": "b832e38e43572dacb460c0aec80e738af24feee1b15271e5f8f1ae49bd7bdc47"
+}

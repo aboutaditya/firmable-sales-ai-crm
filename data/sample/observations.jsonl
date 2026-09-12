@@ -1,0 +1,3 @@
+{"ip":"203.0.113.10","hostname":"www.acme.com","organization":"Acme Corp","country":"US","product":"Microsoft RDP","port":3389,"vulnerabilities":["CVE-2024-1234 critical"],"tags":["security-exposure"]}
+{"ip":"203.0.113.11","domain":"acme.com","organization":"Acme Corp","country":"US","product":"MySQL","port":3306,"vulnerabilities":["CVE-2024-1234 critical","CVE-2023-5555"],"eol_products":["old-mysql"]}
+{"ip":"198.51.100.20","domain":"example.org","organization":"Example Org","country":"DE","product":"nginx","port":443}

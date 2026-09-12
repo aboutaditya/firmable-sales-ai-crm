@@ -1,0 +1,9 @@
+{
+  "examples": 25,
+  "high_priority_f1": 0.5555555555555556,
+  "high_priority_precision": 0.45454545454545453,
+  "high_priority_recall": 0.7142857142857143,
+  "priority_accuracy": 0.56,
+  "prompt_version": "account-scoring-v1",
+  "score_mae": 15.0
+}

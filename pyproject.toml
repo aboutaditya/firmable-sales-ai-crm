@@ -1,0 +1,31 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sales-intelligence"
+version = "0.1.0"
+description = "Streaming company aggregation and deterministic sales intelligence scoring"
+requires-python = ">=3.10"
+
+[project.optional-dependencies]
+analytics = [
+  "duckdb>=1.0",
+  "pyarrow>=15.0",
+]
+compression = ["zstandard>=0.22"]
+api = [
+  "fastapi>=0.115",
+  "uvicorn[standard]>=0.30",
+]
+database = [
+  "psycopg[binary]>=3.2",
+  "SQLAlchemy>=2.0,<3.0",
+  "alembic>=1.13,<2.0",
+]
+
+[project.scripts]
+sales-intelligence = "sales_intelligence.backend.commands:main"
+
+[tool.setuptools.packages.find]
+include = ["sales_intelligence*"]
