@@ -14,10 +14,15 @@ from sales_intelligence.logging_config import configure_logging
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
-    settings = settings or Settings.from_env()
-    settings.validate()
-    configure_logging(settings.log_level)
-    container = build_container(settings)
+    try:
+        settings = settings or Settings.from_env()
+        settings.validate()
+        configure_logging(settings.log_level)
+        container = build_container(settings)
+    except Exception as e:
+        import sys
+        print(f"ERROR during app setup: {e}", file=sys.stderr)
+        raise
     app = FastAPI(title=settings.app_name, version="0.1.0")
     app.add_middleware(RequestIdMiddleware)
     app.add_middleware(
