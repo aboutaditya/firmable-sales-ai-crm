@@ -6,7 +6,7 @@ import os
 import time
 from pathlib import Path
 
-from sales_intelligence.backend.ai.provider import OpenAICompatibleProvider
+from sales_intelligence.ai.provider import OpenAICompatibleProvider
 
 
 def load_rows(path: Path) -> list[dict]:
@@ -21,7 +21,7 @@ def render_prompt(template: str, company: dict) -> str:
 def main() -> None:
     parser = argparse.ArgumentParser(description="Run account-scoring cases through OpenRouter")
     parser.add_argument("--cases", type=Path, default=Path("evals/datasets/account_scoring.jsonl"))
-    parser.add_argument("--prompt", type=Path, default=Path("prompts/account_scoring/v1.txt"))
+    parser.add_argument("--prompt", type=Path, default=Path("backend/sales_intelligence/prompts/account_scoring/v1.txt"))
     parser.add_argument("--prompt-version", default=None)
     parser.add_argument("--output", type=Path, default=Path("evals/results/openrouter-predictions.jsonl"))
     parser.add_argument("--model", default=os.getenv("OPENROUTER_MODEL"))

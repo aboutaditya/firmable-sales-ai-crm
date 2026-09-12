@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "Sales Intelligence API",
-    "description": "Collection for the Sales Intelligence FastAPI service. Local demo mode works with an empty access token when AUTH_REQUIRED=false.",
+    "description": "Collection for the Sales Intelligence FastAPI service. Local demo mode works with an empty access token when AUTH_REQUIRED=false. Queue and Admin requests require a valid Supabase-compatible JWT in the accessToken collection variable.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -10,6 +10,7 @@
     { "key": "accessToken", "value": "" },
     { "key": "cursor", "value": "" },
     { "key": "assignedUserId", "value": "sales-user-1" },
+    { "key": "targetUserId", "value": "sales-user-2" },
     { "key": "teamId", "value": "team-a" }
   ],
   "auth": {
@@ -45,6 +46,86 @@
         {
           "name": "Readiness",
           "request": { "method": "GET", "header": [], "url": "{{baseUrl}}/health/ready" }
+        }
+      ]
+    },
+    {
+      "name": "Queue",
+      "item": [
+        {
+          "name": "Get my preferences",
+          "request": { "method": "GET", "header": [], "url": "{{baseUrl}}/me/preferences" }
+        },
+        {
+          "name": "Update my preferences",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"min_exposure_score\": 80\n}" },
+            "url": "{{baseUrl}}/me/preferences"
+          }
+        },
+        {
+          "name": "Next lead",
+          "request": { "method": "GET", "header": [], "url": "{{baseUrl}}/me/queue/next" }
+        },
+        {
+          "name": "List my queue",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/me/queue?page=1&page_size=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["me", "queue"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "page_size", "value": "10" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Update disposition",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"disposition\": \"qualified\",\n  \"notes\": \"Strong fit; spoke with the CTO.\",\n  \"next_follow_up_at\": \"2026-09-20T09:00:00Z\"\n}"
+            },
+            "url": "{{baseUrl}}/me/queue/{{companyId}}/disposition"
+          }
+        },
+        {
+          "name": "Record call activity",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"outcome\": \"connected\",\n  \"notes\": \"Reached the CTO; will follow up.\",\n  \"next_follow_up_at\": \"2026-09-20T09:00:00Z\"\n}"
+            },
+            "url": "{{baseUrl}}/me/queue/{{companyId}}/calls"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin",
+      "item": [
+        {
+          "name": "List users",
+          "request": { "method": "GET", "header": [], "url": "{{baseUrl}}/admin/users" }
+        },
+        {
+          "name": "Update user preferences",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"min_exposure_score\": 60\n}" },
+            "url": "{{baseUrl}}/users/{{targetUserId}}/queue-preferences"
+          }
         }
       ]
     },

@@ -1,0 +1,168 @@
+{
+  "by_feature": {
+    "company_summary": {
+      "clean_pass_rate": 1.0,
+      "n": 1,
+      "pass_rates": {
+        "covers_signal": {
+          "fail_trace_ids": [],
+          "pass_rate": 1.0
+        },
+        "no_fabrication": {
+          "fail_trace_ids": [],
+          "pass_rate": 1.0
+        },
+        "no_invented_signal": {
+          "fail_trace_ids": [],
+          "pass_rate": 1.0
+        },
+        "word_count_ok": {
+          "fail_trace_ids": [],
+          "pass_rate": 1.0
+        }
+      }
+    },
+    "outreach": {
+      "clean_pass_rate": 1.0,
+      "n": 2,
+      "pass_rates": {
+        "covers_signal": {
+          "fail_trace_ids": [],
+          "pass_rate": 1.0
+        },
+        "has_cta": {
+          "fail_trace_ids": [],
+          "pass_rate": 1.0
+        },
+        "has_subject": {
+          "fail_trace_ids": [],
+          "pass_rate": 1.0
+        },
+        "no_fabrication": {
+          "fail_trace_ids": [],
+          "pass_rate": 1.0
+        },
+        "no_invented_signal": {
+          "fail_trace_ids": [],
+          "pass_rate": 1.0
+        },
+        "word_count_ok": {
+          "fail_trace_ids": [],
+          "pass_rate": 1.0
+        }
+      }
+    }
+  },
+  "classification_rows_validated": {
+    "n": 0,
+    "valid": 0
+  },
+  "content_rows_evaluated": 3,
+  "rows": [
+    {
+      "clean_pass": true,
+      "criteria": {
+        "covers_signal": true,
+        "has_cta": true,
+        "has_subject": true,
+        "no_fabrication": true,
+        "no_invented_signal": true,
+        "word_count_ok": true
+      },
+      "feature": "outreach",
+      "notes": {
+        "absent_signals": [
+          "rdp",
+          "database",
+          "exchange"
+        ],
+        "applies": [
+          "covers_signal",
+          "no_invented_signal",
+          "no_fabrication",
+          "has_subject",
+          "word_count_ok",
+          "has_cta"
+        ],
+        "present_signals": [
+          "vulnerabilities",
+          "critical",
+          "eol"
+        ],
+        "words": 63
+      },
+      "prompt_version": "outreach-v1",
+      "trace_id": "0ae70fee-5840-491f-84d5-fb3d046f2416"
+    },
+    {
+      "clean_pass": true,
+      "criteria": {
+        "covers_signal": true,
+        "has_cta": true,
+        "has_subject": true,
+        "no_fabrication": true,
+        "no_invented_signal": true,
+        "word_count_ok": true
+      },
+      "feature": "outreach",
+      "notes": {
+        "absent_signals": [
+          "vulnerabilities",
+          "critical",
+          "database",
+          "exchange",
+          "eol"
+        ],
+        "applies": [
+          "covers_signal",
+          "no_invented_signal",
+          "no_fabrication",
+          "has_subject",
+          "word_count_ok",
+          "has_cta"
+        ],
+        "present_signals": [
+          "rdp"
+        ],
+        "words": 57
+      },
+      "prompt_version": "outreach-v1",
+      "trace_id": "8ed0920e-c4f1-46b1-8bf9-54155f87b060"
+    },
+    {
+      "clean_pass": true,
+      "criteria": {
+        "covers_signal": true,
+        "no_fabrication": true,
+        "no_invented_signal": true,
+        "word_count_ok": true
+      },
+      "feature": "company_summary",
+      "notes": {
+        "absent_signals": [
+          "vulnerabilities",
+          "critical",
+          "database",
+          "exchange",
+          "eol"
+        ],
+        "applies": [
+          "covers_signal",
+          "no_invented_signal",
+          "no_fabrication",
+          "word_count_ok"
+        ],
+        "present_signals": [
+          "rdp"
+        ],
+        "words": 71
+      },
+      "prompt_version": "company_summary-v1",
+      "trace_id": "2bf7a971-dc77-4211-ba56-f7c1e01f0acc"
+    }
+  ],
+  "run_at": "2026-09-12T21:12:13.048642+00:00",
+  "source": "data/traces/llm_calls.jsonl",
+  "traces_success": 3,
+  "traces_total": 5
+}

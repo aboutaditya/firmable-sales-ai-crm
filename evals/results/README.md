@@ -11,6 +11,8 @@ set, reproduction commands, and known weaknesses.
 | `openrouter-account-scoring-v2-partial.json` | v2 report vs v1 subset | Partial — 18-case overlap |
 | `openrouter-predictions-v1-18subset.jsonl` | v1 rows for the 18 shared cases | Derived artifact for the partial comparison |
 | `cases-18subset.jsonl` | cases for the 18 shared companies | Derived artifact for the partial comparison |
+| `output-rubric.json` | rubric vs the 10 hand-labelled output cases | Complete (2026-09-12) — clean-pass accuracy 1.0 |
+| `output-traces.json` | rubric on content rows in `data/traces/llm_calls.jsonl` | Complete (2026-09-12) — 3 content rows, all clean-pass |
 
 ## Regenerate the full v1 vs v2 comparison
 

@@ -9,15 +9,17 @@ NPM ?= npm
 BACKEND_HOST ?= 127.0.0.1
 BACKEND_PORT ?= 8000
 FRONTEND_PORT ?= 3000
-DATASET ?= data/processed/demo-companies.parquet
+DATASET ?= data/processed/companies.parquet
 RAW_SOURCE ?= $(if $(RAW_DATASET_URL),$(RAW_DATASET_URL),data/demo/observations.jsonl)
-DATASET_VERSION ?= demo-v1
+DATASET_VERSION ?= real-v1
+MAX_RECORDS ?= 5000
 MIN_SCORE ?= 0
-MAX_RECORDS ?= 1000
 BATCH_SIZE ?= 1000
 CHECKPOINT ?= $(DATASET).checkpoint.json
 DATASET_RUNS_DIR ?= data/processed/dataset_runs
 DATASET_NAME ?= companies
+TRACES_PATH ?= data/traces/llm_calls.jsonl
+LLM_TRACE_BUCKET ?= llm-traces
 AUTH_REQUIRED=false
 NEXT_PUBLIC_LOCAL_DEMO=true
 NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1
@@ -30,7 +32,9 @@ export OPENROUTER_API_KEY OPENROUTER_BASE_URL OPENROUTER_MODEL \
 
 .PHONY: help init init-backend init-frontend install-backend install-frontend \
         etl migrate sync test test-python test-frontend build-frontend \
-        eval-openrouter eval-openrouter-v2 eval-report eval-compare start-backend start-frontend start dev compile clean-cache
+        eval-openrouter eval-openrouter-v2 eval-report eval-compare \
+        eval-output-traces eval-output-storage eval-output-golden \
+        start-backend start-frontend start dev compile clean-cache
 
 help:
 	@printf '%s\n' \
@@ -38,13 +42,16 @@ help:
 		'  make init             Install backend/frontend dependencies' \
 		'  make init-backend     Install Python dependencies and package' \
 		'  make init-frontend    Install frontend dependencies' \
-		'  make etl              Build the local Parquet dataset from the demo source' \
+		'  make etl              Build the analytical Parquet dataset from RAW_DATASET_URL' \
 		'  make migrate          Apply Alembic migrations using DATABASE_URL' \
 		'  make sync             Sync qualified companies using DATABASE_URL' \
 		'  make eval-openrouter  Run labelled account-scoring cases through OpenRouter' \
 		'  make eval-openrouter-v2 Run the v2 account-scoring prompt through OpenRouter' \
 		'  make eval-report      Calculate evaluation metrics from saved predictions' \
 		'  make eval-compare     Compare v2 metrics with the v1 baseline' \
+		'  make eval-output-traces        Score generated content in the LLM trace file' \
+		'  make eval-output-storage       Score generated content from the Supabase Storage bucket' \
+		'  make eval-output-golden        Verify the output rubric against hand-labelled cases' \
 		'  make start-backend    Start FastAPI on $(BACKEND_HOST):$(BACKEND_PORT)' \
 		'  make start-frontend   Start Next.js on $(FRONTEND_PORT)' \
 		'  make start             Start backend and frontend together' \
@@ -54,8 +61,8 @@ help:
 init: init-backend init-frontend
 
 init-backend:
-	$(PIP) install -r requirements-dev.txt
-	$(PIP) install -e .
+	$(PIP) install -r backend/requirements-dev.txt
+	$(PIP) install -e backend
 	@echo 'Backend dependencies installed. Local Parquet mode does not require a .env file.'
 
 init-frontend:
@@ -73,7 +80,7 @@ etl:
 
 migrate:
 	@test -n "$(DATABASE_URL)" || (echo 'DATABASE_URL is required. Example: make migrate DATABASE_URL=postgresql://...'; exit 1)
-	DATABASE_URL="$(DATABASE_URL)" alembic upgrade head
+	DATABASE_URL="$(DATABASE_URL)" alembic -c backend/alembic.ini upgrade head
 
 sync:
 	$(PYTHON) -m sales_intelligence sync $(DATASET) \
@@ -82,7 +89,7 @@ sync:
 eval-openrouter:
 	$(PYTHON) evals/run_openrouter_eval.py \
 		--cases evals/datasets/account_scoring.jsonl \
-		--prompt prompts/account_scoring/v1.txt \
+		--prompt backend/sales_intelligence/prompts/account_scoring/v1.txt \
 		--prompt-version account-scoring-v1 \
 		--resume \
 		--output evals/results/openrouter-predictions.jsonl
@@ -90,7 +97,7 @@ eval-openrouter:
 eval-openrouter-v2:
 	$(PYTHON) evals/run_openrouter_eval.py \
 		--cases evals/datasets/account_scoring.jsonl \
-		--prompt prompts/account_scoring/v2.txt \
+		--prompt backend/sales_intelligence/prompts/account_scoring/v2.txt \
 		--prompt-version account-scoring-v2 \
 		--resume \
 		--output evals/results/openrouter-predictions-v2.jsonl
@@ -111,8 +118,25 @@ eval-compare:
 		--previous-prompt-version account-scoring-v1 \
 		--output evals/results/openrouter-account-scoring-v2.json
 
+eval-output-traces:
+	$(PYTHON) evals/harness_output.py \
+		--traces $(TRACES_PATH) \
+		--output evals/results/output-traces.json
+
+eval-output-storage:
+	$(PYTHON) evals/harness_output.py \
+		--storage \
+		--bucket $(LLM_TRACE_BUCKET) \
+		--output evals/results/output-traces-storage.json
+
+eval-output-golden:
+	$(PYTHON) evals/harness_output.py \
+		--golden \
+		--cases evals/datasets/output_rubric.jsonl \
+		--output evals/results/output-rubric.json
+
 start-backend:
-	ANALYTICAL_DATASET=$(DATASET) uvicorn sales_intelligence.backend.main:app \
+	ANALYTICAL_DATASET=$(DATASET) uvicorn sales_intelligence.main:app \
 		--host $(BACKEND_HOST) --port $(BACKEND_PORT) --reload
 
 start-frontend:
@@ -129,8 +153,9 @@ dev: start
 test: test-python build-frontend
 
 test-python:
-	$(PYTHON) -m unittest discover -s tests -v
-	$(PYTHON) -m compileall -q sales_intelligence scripts
+	$(PYTHON) -m unittest discover -s backend/sales_intelligence/tests -v
+	$(PYTHON) -m unittest discover -s evals/tests -v
+	$(PYTHON) -m compileall -q backend/sales_intelligence evals
 
 test-frontend:
 	cd frontend && $(NPM) run build
@@ -138,7 +163,7 @@ test-frontend:
 build-frontend: test-frontend
 
 compile:
-	$(PYTHON) -m compileall -q sales_intelligence scripts
+	$(PYTHON) -m compileall -q backend/sales_intelligence evals
 
 clean-cache:
 	find . -type d \( -name __pycache__ -o -name .pytest_cache \) -prune -exec rm -rf {} +
