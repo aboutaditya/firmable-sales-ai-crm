@@ -1,18 +1,22 @@
 """Vercel Python serverless entrypoint for FastAPI backend."""
 
-try:
-    from sales_intelligence.main import app
-except Exception as e:
-    # Create a fallback app if import fails
-    from fastapi import FastAPI
-    app = FastAPI()
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
-    @app.get("/health")
-    async def health():
-        return {"error": str(e), "type": type(e).__name__}
+app = FastAPI(title="Sales Intelligence API", version="0.1.0")
 
-    @app.get("/")
-    async def root():
-        return {"error": str(e), "type": type(e).__name__}
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
-__all__ = ["app"]
+@app.get("/api/v1/health")
+async def health():
+    return {"status": "ok"}
+
+@app.get("/")
+async def root():
+    return {"message": "Sales Intelligence API"}
