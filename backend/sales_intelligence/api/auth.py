@@ -60,10 +60,13 @@ def current_user(
         elif algorithm in {"ES256", "RS256"}:
             if not settings.supabase_jwks_url:
                 raise HTTPException(status_code=503, detail="Supabase JWKS authentication is not configured")
+            print(f"DEBUG: Using JWKS_URL: {settings.supabase_jwks_url}", file=sys.stderr)
             signing_key = jwt.PyJWKClient(settings.supabase_jwks_url).get_signing_key_from_jwt(token).key
+            print(f"DEBUG: Got signing key", file=sys.stderr)
         else:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Unsupported bearer token algorithm")
 
+        print(f"DEBUG: Decoding token with algorithm={algorithm}, audience={settings.supabase_jwt_audience}", file=sys.stderr)
         claims = jwt.decode(
             token,
             signing_key,
@@ -72,7 +75,9 @@ def current_user(
             audience=settings.supabase_jwt_audience,
             issuer=issuer,
         )
+        print(f"DEBUG: Token verified successfully", file=sys.stderr)
     except jwt.PyJWTError as exc:
+        print(f"DEBUG: JWT Error: {exc}", file=sys.stderr)
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid bearer token") from exc
     app_metadata = claims.get("app_metadata") or {}
     raw_roles = claims.get("roles") or app_metadata.get("roles") or []
