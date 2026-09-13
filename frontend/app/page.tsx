@@ -27,6 +27,12 @@ export default function Dashboard() {
 
   useEffect(() => { ai.resetAi(); }, [queue.lead?.company.company_id]);
 
+  useEffect(() => {
+    if (isAdmin && queue.minExposureScore === 60) {
+      queue.loadLead();
+    }
+  }, [isAdmin]);
+
   const { company, loading, saving, workflowValues, updateWorkflow } = queue;
   const signals = company ? observedSignals(company) : [];
 
@@ -43,8 +49,8 @@ export default function Dashboard() {
       {loading ? <section className="panel loading-card"><div className="spinner" /><p>Finding your next account…</p></section> : !company ? <section className="panel empty"><h2>No account loaded</h2><p>Fetch your next best account from the unassigned pool when you are ready.</p><button className="fetch-next" onClick={() => queue.loadLead()} disabled={loading}>{loading ? "Fetching…" : "Get next lead"}</button></section> : (
         <section className="workspace single-lead">
           <aside className="side-stack">
-            <AICard aiOutput={ai.aiOutput} aiLoading={ai.aiLoading} onRunAi={action => ai.runAi(queue.company?.company_id, action)} />
-            <WorkflowCard values={workflowValues} saving={saving} disabled={queue.isLocalDemo} onChange={updateWorkflow} onSaveDisposition={queue.saveDisposition} onLogCall={queue.logCall} onSkip={queue.skipLead} />
+            <AICard aiOutputs={ai.aiOutputs} aiLoading={ai.aiLoading} onRunAi={action => ai.runAi(queue.company?.company_id, action)} />
+            <WorkflowCard values={workflowValues} saving={saving} disabled={queue.isLocalDemo} onChange={updateWorkflow} onSaveDisposition={queue.saveDisposition} onSkip={queue.skipLead} />
           </aside>
           <LeadDetail company={company} status={queue.lead?.status ?? ""} signals={signals} />
         </section>

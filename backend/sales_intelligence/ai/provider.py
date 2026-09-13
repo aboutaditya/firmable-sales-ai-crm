@@ -143,6 +143,14 @@ class OpenAICompatibleProvider:
         except json.JSONDecodeError as exc:
             logger.error(f"LLM provider returned invalid JSON: {response.text[:500]}")
             raise
+
+        # Check for error in response body (OpenRouter returns 200 OK but includes error)
+        if isinstance(payload, dict) and "error" in payload:
+            error_info = payload.get("error", {})
+            error_msg = error_info.get("message", "Unknown error") if isinstance(error_info, dict) else str(error_info)
+            logger.error(f"LLM provider returned error: {error_msg}")
+            raise RuntimeError(f"LLM provider error: {error_msg}")
+
         try:
             content = payload["choices"][0]["message"]["content"]
         except (KeyError, TypeError, IndexError) as exc:

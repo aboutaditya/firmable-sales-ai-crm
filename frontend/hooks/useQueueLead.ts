@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
-import { Company, Disposition, QueueLead, getNextLead, getQueuePreferences, listCompanies, recordCall, updateDisposition, updateQueuePreferences } from "../lib/api";
+import { Company, Disposition, QueueLead, getNextLead, getQueuePreferences, listCompanies, updateDisposition, updateQueuePreferences } from "../lib/api";
 import { TERMINAL_DISPOSITIONS, dispositionLabels } from "../lib/dispositions";
 import { useAuth } from "../components/AuthGate";
 import { WorkflowFormValues } from "../components/shared/WorkflowForm";
@@ -33,7 +33,6 @@ export function useQueueLead({ isAdmin, onError, onNotice }: QueueLeadDeps) {
   const [minExposureScore, setMinExposureScore] = useState(DEFAULT_THRESHOLD);
   const [thresholdDraft, setThresholdDraft] = useState(DEFAULT_THRESHOLD);
   const [disposition, setDisposition] = useState<Disposition>("not_contacted");
-  const [callOutcome, setCallOutcome] = useState<Disposition>("call_attempted");
   const [notes, setNotes] = useState("");
   const [followUp, setFollowUp] = useState("");
 
@@ -98,30 +97,10 @@ export function useQueueLead({ isAdmin, onError, onNotice }: QueueLeadDeps) {
         next_follow_up_at: followUp ? new Date(`${followUp}T09:00:00`).toISOString() : undefined,
       });
       onNotice(`Saved: ${dispositionLabels[disposition]}`);
-      if (TERMINAL_DISPOSITIONS.includes(disposition)) setLead(null);
-      else setLead({ ...lead, disposition, notes: notes || null });
+      setLead(null);
+      await loadLead();
     } catch (err) {
       onError(err instanceof Error ? err.message : "Unable to save disposition");
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  async function logCall(event: FormEvent) {
-    event.preventDefault();
-    if (!lead || isLocalDemo) return;
-    setSaving(true);
-    onError("");
-    try {
-      await recordCall(lead.company.company_id, {
-        outcome: callOutcome,
-        notes: notes || undefined,
-        next_follow_up_at: followUp ? new Date(`${followUp}T09:00:00`).toISOString() : undefined,
-      });
-      onNotice(`Call logged: ${dispositionLabels[callOutcome]}`);
-      setDisposition(callOutcome);
-    } catch (err) {
-      onError(err instanceof Error ? err.message : "Unable to log call");
     } finally {
       setSaving(false);
     }
@@ -142,10 +121,9 @@ export function useQueueLead({ isAdmin, onError, onNotice }: QueueLeadDeps) {
     }
   }
 
-  const workflowValues: WorkflowFormValues = { disposition, callOutcome, notes, followUp };
+  const workflowValues: WorkflowFormValues = { disposition, notes, followUp };
   function updateWorkflow(patch: Partial<WorkflowFormValues>) {
     if (patch.disposition !== undefined) setDisposition(patch.disposition);
-    if (patch.callOutcome !== undefined) setCallOutcome(patch.callOutcome);
     if (patch.notes !== undefined) setNotes(patch.notes);
     if (patch.followUp !== undefined) setFollowUp(patch.followUp);
   }
@@ -164,7 +142,6 @@ export function useQueueLead({ isAdmin, onError, onNotice }: QueueLeadDeps) {
     loadLead,
     saveThreshold,
     saveDisposition,
-    logCall,
     skipLead,
   };
 }
