@@ -106,7 +106,16 @@ class S3TraceSink:
             f"{now:%Y%m%dT%H%M%S}-{trace_id}.json"
         )
         body = json.dumps(row, sort_keys=True, default=str).encode("utf-8")
-        asyncio.create_task(self._upload_async(object_path, body))
+        try:
+            loop = asyncio.get_running_loop()
+            loop.create_task(self._upload_async(object_path, body))
+        except RuntimeError:
+            try:
+                import threading
+                thread = threading.Thread(target=self._upload_sync, args=(object_path, body), daemon=True)
+                thread.start()
+            except Exception as exc:
+                logger.warning("trace upload to S3 failed to start: %s", exc)
         return trace_id
 
     async def _upload_async(self, object_path: str, body: bytes) -> None:
@@ -128,5 +137,25 @@ class S3TraceSink:
                     Body=body,
                     ContentType="application/json",
                 )
+        except Exception as exc:
+            logger.warning("trace upload to S3 failed for %s: %s", object_path, exc)
+
+    def _upload_sync(self, object_path: str, body: bytes) -> None:
+        try:
+            import boto3
+
+            client = boto3.client(
+                "s3",
+                endpoint_url=self.s3_endpoint,
+                region_name=self.s3_region,
+                aws_access_key_id=self.s3_access_key,
+                aws_secret_access_key=self.s3_secret_key,
+            )
+            client.put_object(
+                Bucket=self.s3_bucket,
+                Key=object_path,
+                Body=body,
+                ContentType="application/json",
+            )
         except Exception as exc:
             logger.warning("trace upload to S3 failed for %s: %s", object_path, exc)
