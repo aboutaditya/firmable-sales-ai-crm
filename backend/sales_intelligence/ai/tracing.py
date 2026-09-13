@@ -55,9 +55,12 @@ class JsonlTraceSink:
             **event,
         }
         with self._lock:
-            self.path.parent.mkdir(parents=True, exist_ok=True)
-            with self.path.open("a", encoding="utf-8") as stream:
-                stream.write(json.dumps(row, sort_keys=True, default=str) + "\n")
+            try:
+                self.path.parent.mkdir(parents=True, exist_ok=True)
+                with self.path.open("a", encoding="utf-8") as stream:
+                    stream.write(json.dumps(row, sort_keys=True, default=str) + "\n")
+            except OSError as exc:
+                logger.warning("unable to write trace to %s: %s (tracing disabled)", self.path, exc)
         return trace_id
 
 

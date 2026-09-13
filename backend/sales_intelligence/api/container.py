@@ -10,7 +10,7 @@ from sales_intelligence.ai.content_service import AIContentService
 from sales_intelligence.ai.provider import OpenAICompatibleProvider
 from sales_intelligence.ai.repository import SqlAlchemyAssessmentRepository
 from sales_intelligence.ai.service import AIQualificationService
-from sales_intelligence.ai.tracing import CompositeTraceSink, JsonlTraceSink, NullTraceSink, SupabaseStorageTraceSink, TraceSink
+from sales_intelligence.ai.tracing import JsonlTraceSink, NullTraceSink, TraceSink
 from sales_intelligence.api.rate_limit import InMemoryRateLimiter
 from sales_intelligence.config import Settings
 from sales_intelligence.db.session import create_session_factory
@@ -55,21 +55,10 @@ class AppContainer:
 
 
 def build_trace_sink(settings: Settings) -> TraceSink:
-    """Compose local JSONL and/or Supabase Storage trace sinks from settings."""
-    backend = settings.llm_trace_backend
-    sinks = {
-        "jsonl": lambda: [JsonlTraceSink(settings.llm_trace_path)],
-        "storage": lambda: [SupabaseStorageTraceSink(settings.supabase_url or "", settings.supabase_service_role_key or "", settings.llm_trace_bucket)],
-        "both": lambda: [JsonlTraceSink(settings.llm_trace_path), SupabaseStorageTraceSink(settings.supabase_url or "", settings.supabase_service_role_key or "", settings.llm_trace_bucket)],
-    }
-    if backend not in sinks:
-        raise ValueError(f"unsupported LLM_TRACE_BACKEND: {backend}")
-    built = sinks[backend]()
-    if "storage" in backend and not (settings.supabase_url and settings.supabase_service_role_key):
-        raise ValueError("LLM_TRACE_BACKEND=storage requires SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY")
-    if not built:
-        return NullTraceSink()
-    return built[0] if len(built) == 1 else CompositeTraceSink(built)
+    """Compose local JSONL trace sink from settings."""
+    if settings.llm_trace_backend == "jsonl":
+        return JsonlTraceSink(settings.llm_trace_path)
+    return NullTraceSink()
 
 
 def build_container(settings: Settings) -> AppContainer:

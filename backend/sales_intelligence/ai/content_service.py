@@ -58,41 +58,31 @@ class AIContentService:
             )
             raise
         latency_ms = round((time.perf_counter() - started) * 1000)
-        try:
-            self.trace_sink.record(
-                feature=feature,
-                model=self.provider.model,
-                prompt_version=prompt_version,
-                request=request_payload,
-                response={"content": provider_response.content},
-                latency_ms=latency_ms,
-                input_tokens=provider_response.input_tokens,
-                output_tokens=provider_response.output_tokens,
-                cost_usd=provider_response.cost_usd,
-                decision="generated",
-                status="success",
-                error=None,
-            )
-        except Exception as exc:
-            import sys
-            print(f"ERROR: trace_sink.record failed: {type(exc).__name__}: {exc}", file=sys.stderr)
-            raise
-        try:
-            saved = self.output_repository.save(
-                company_id=company_id,
-                feature=feature,
-                content=provider_response.content,
-                model=self.provider.model,
-                prompt_version=prompt_version,
-                input_tokens=provider_response.input_tokens,
-                output_tokens=provider_response.output_tokens,
-                cost_usd=provider_response.cost_usd,
-                latency_ms=latency_ms,
-            )
-        except Exception as exc:
-            import sys
-            print(f"ERROR: output_repository.save failed: {type(exc).__name__}: {exc}", file=sys.stderr)
-            raise
+        self.trace_sink.record(
+            feature=feature,
+            model=self.provider.model,
+            prompt_version=prompt_version,
+            request=request_payload,
+            response={"content": provider_response.content},
+            latency_ms=latency_ms,
+            input_tokens=provider_response.input_tokens,
+            output_tokens=provider_response.output_tokens,
+            cost_usd=provider_response.cost_usd,
+            decision="generated",
+            status="success",
+            error=None,
+        )
+        saved = self.output_repository.save(
+            company_id=company_id,
+            feature=feature,
+            content=provider_response.content,
+            model=self.provider.model,
+            prompt_version=prompt_version,
+            input_tokens=provider_response.input_tokens,
+            output_tokens=provider_response.output_tokens,
+            cost_usd=provider_response.cost_usd,
+            latency_ms=latency_ms,
+        )
         return self._response(company_id, feature, saved, cached=False)
 
     @staticmethod
