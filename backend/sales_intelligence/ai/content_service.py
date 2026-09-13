@@ -75,6 +75,8 @@ class AIContentService:
             raise
         latency_ms = round((time.perf_counter() - started) * 1000)
         logger.info(f"generate: LLM call completed in {latency_ms}ms for feature={feature}")
+
+        trace_start = time.perf_counter()
         self.trace_sink.record(
             feature=feature,
             model=self.provider.model,
@@ -89,7 +91,11 @@ class AIContentService:
             status="success",
             error=None,
         )
+        trace_ms = round((time.perf_counter() - trace_start) * 1000)
+        logger.debug(f"generate: trace_sink.record() completed in {trace_ms}ms")
+
         logger.debug(f"generate: saving output to repository for company_id={company_id}, feature={feature}")
+        db_start = time.perf_counter()
         try:
             saved = self.output_repository.save(
                 company_id=company_id,
@@ -102,11 +108,18 @@ class AIContentService:
                 cost_usd=provider_response.cost_usd,
                 latency_ms=latency_ms,
             )
-            logger.info(f"generate: output saved successfully for company_id={company_id}, feature={feature}")
+            db_ms = round((time.perf_counter() - db_start) * 1000)
+            logger.info(f"generate: output saved successfully in {db_ms}ms for company_id={company_id}, feature={feature}")
         except Exception as exc:
-            logger.error(f"generate: failed to save output for company_id={company_id}, feature={feature}: {type(exc).__name__}: {exc}", exc_info=True)
+            db_ms = round((time.perf_counter() - db_start) * 1000)
+            logger.error(f"generate: failed to save output after {db_ms}ms for company_id={company_id}, feature={feature}: {type(exc).__name__}: {exc}", exc_info=True)
             raise
-        return self._response(company_id, feature, saved, cached=False)
+
+        response_start = time.perf_counter()
+        response = self._response(company_id, feature, saved, cached=False)
+        response_ms = round((time.perf_counter() - response_start) * 1000)
+        logger.debug(f"generate: _response() completed in {response_ms}ms")
+        return response
 
     @staticmethod
     def _response(company_id: str, feature: str, output, *, cached: bool) -> dict:
