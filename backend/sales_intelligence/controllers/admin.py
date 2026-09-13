@@ -25,13 +25,23 @@ class AdminController:
         user: AuthUser = Depends(require_roles("admin")),
     ) -> AdminUserListResponse:
         require_authenticated_queue_user(user)
+        import sys
         try:
+            print(f"DEBUG: Calling list_queue_users()", file=sys.stderr)
             queue_users = {item["user_id"]: item for item in service.list_queue_users()}
+            print(f"DEBUG: Got {len(queue_users)} queue users", file=sys.stderr)
+            print(f"DEBUG: Calling directory.list_users()", file=sys.stderr)
             auth_users = directory.list_users()
+            print(f"DEBUG: Got {len(auth_users)} auth users", file=sys.stderr)
         except RuntimeError as exc:
+            print(f"ERROR RuntimeError: {exc}", file=sys.stderr)
             raise HTTPException(status_code=503, detail=str(exc)) from exc
         except httpx.HTTPError as exc:
+            print(f"ERROR httpx.HTTPError: {exc}", file=sys.stderr)
             raise HTTPException(status_code=503, detail="Unable to list Supabase users") from exc
+        except Exception as exc:
+            print(f"ERROR Unexpected: {type(exc).__name__}: {exc}", file=sys.stderr)
+            raise
 
         identities = {item["user_id"]: item for item in auth_users}
         for user_id, item in queue_users.items():
