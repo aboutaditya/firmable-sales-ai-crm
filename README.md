@@ -3,9 +3,11 @@
 An AI-assisted sales intelligence platform that ingests large volumes of
 internet-exposure observations (Shodan-style JSONL), aggregates them into
 company profiles, scores each company by its security-exposure risk, and lets
-sales teams find, qualify, and work their best leads. The high-level design is
-in [docs/HLD.md](docs/HLD.md); per-component plans live in
-[docs/plan/](docs/plan/).
+sales teams find, qualify, and work their best leads.
+
+**Start here:** [IMPLEMENTATION_GUIDE.md](IMPLEMENTATION_GUIDE.md) maps each task requirement to what was built, where it lives, and how to use it.  
+**System overview:** See [docs/HLD.md](docs/HLD.md) for architecture and [docs/HOW_YOU_BUILD.md](docs/HOW_YOU_BUILD.md) for design rationale.  
+**Component details:** Per-component plans live in [docs/plan/](docs/plan/).
 
 ## What it offers
 
