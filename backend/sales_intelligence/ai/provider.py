@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import re
 import time
 from dataclasses import dataclass
@@ -9,6 +10,8 @@ from typing import Protocol
 import httpx
 
 from sales_intelligence.pydantic import QualificationResult
+
+logger = logging.getLogger(__name__)
 
 
 class LLMProviderError(RuntimeError):
@@ -130,8 +133,16 @@ class OpenAICompatibleProvider:
             time.sleep(2**attempt)
         if response is None:
             raise RuntimeError("LLM provider returned no response")
-        payload = response.json()
-        content = payload["choices"][0]["message"]["content"]
+        try:
+            payload = response.json()
+        except json.JSONDecodeError as exc:
+            logger.error(f"LLM provider returned invalid JSON: {response.text[:500]}")
+            raise
+        try:
+            content = payload["choices"][0]["message"]["content"]
+        except (KeyError, TypeError, IndexError) as exc:
+            logger.error(f"LLM provider response missing expected structure. Response: {json.dumps(payload, default=str)[:1000]}")
+            raise KeyError(f"choices: {exc}") from exc
         usage = payload.get("usage") or {}
         input_tokens = usage.get("prompt_tokens") or usage.get("input_tokens")
         output_tokens = usage.get("completion_tokens") or usage.get("output_tokens")
