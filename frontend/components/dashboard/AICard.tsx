@@ -1,6 +1,7 @@
 "use client";
 
 import { AIContentOutput } from "../../lib/api";
+import AILoader from "../shared/AILoader";
 
 type AiOutputs = {
   summary: AIContentOutput | null;
@@ -21,12 +22,14 @@ type AICardProps = {
 
 export default function AICard({ aiOutputs, aiLoading, completedActions, onRunAi }: AICardProps) {
   const hasAnyOutput = aiOutputs.summary || aiOutputs.outreach;
+  const loaderMessage = aiLoading === "summary" ? "Writing account summary..." : "Drafting outreach...";
 
   return (
     <section className="panel ai-card">
       <div className="section-heading"><div><p className="eyebrow">AI ASSISTANCE</p><h2>Use AI after reviewing evidence</h2></div></div>
       <div className="ai-actions"><button onClick={() => onRunAi("summary")} disabled={!!aiLoading || completedActions.summary}>{aiLoading === "summary" ? "Writing…" : "Account summary"}</button><button onClick={() => onRunAi("outreach")} disabled={!!aiLoading || completedActions.outreach}>{aiLoading === "outreach" ? "Writing…" : "Draft outreach"}</button></div>
-      {hasAnyOutput && (
+      {aiLoading && <AILoader message={loaderMessage} />}
+      {hasAnyOutput && !aiLoading && (
         <div className="ai-outputs">
           {aiOutputs.summary && (
             <article className="output">
