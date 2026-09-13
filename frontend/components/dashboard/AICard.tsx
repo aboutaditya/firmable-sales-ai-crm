@@ -28,8 +28,7 @@ export default function AICard({ aiOutputs, aiLoading, completedActions, onRunAi
     <section className="panel ai-card">
       <div className="section-heading"><div><p className="eyebrow">AI ASSISTANCE</p><h2>Use AI after reviewing evidence</h2></div></div>
       <div className="ai-actions"><button onClick={() => onRunAi("summary")} disabled={!!aiLoading || completedActions.summary}>{aiLoading === "summary" ? "Writing…" : "Account summary"}</button><button onClick={() => onRunAi("outreach")} disabled={!!aiLoading || completedActions.outreach}>{aiLoading === "outreach" ? "Writing…" : "Draft outreach"}</button></div>
-      {aiLoading && <AILoader message={loaderMessage} />}
-      {hasAnyOutput && !aiLoading && (
+      {hasAnyOutput && (
         <div className="ai-outputs">
           {aiOutputs.summary && (
             <article className="output">
@@ -45,6 +44,7 @@ export default function AICard({ aiOutputs, aiLoading, completedActions, onRunAi
           )}
         </div>
       )}
+      {aiLoading && <AILoader message={loaderMessage} />}
       <p className="ai-note">AI output is a draft grounded in this account&apos;s observed data. Verify it before sending.</p>
     </section>
   );
