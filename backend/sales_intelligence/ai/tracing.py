@@ -1,9 +1,9 @@
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import re
-import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
 from threading import Lock
@@ -70,8 +70,8 @@ def _prompt_slug(event: dict[str, Any]) -> str:
     return slug or "llm"
 
 
-class SupabaseStorageTraceSink:
-    """Upload each trace record to a Supabase Storage bucket.
+class S3TraceSink:
+    """Upload each trace record to S3-compatible storage (e.g., Supabase Storage).
 
     Objects are stored one-per-record at
     ``traces/<prompt-slug>/<year>/<month>/<day>/<timestamp>-<trace_id>.json``
@@ -79,26 +79,19 @@ class SupabaseStorageTraceSink:
     hierarchy is browsable per prompt and day.
     """
 
-    def __init__(self, storage_url: str, service_role_key: str, bucket: str = "llm-traces", timeout: float = 10.0):
-        self.base_url = storage_url.rstrip("/")
-        self.bucket = bucket
-        self.service_role_key = service_role_key
-        self.timeout = timeout
-        self._lock = Lock()
-
-    def _upload(self, object_path: str, body: bytes) -> None:
-        request = urllib.request.Request(
-            f"{self.base_url}/storage/v1/object/{self.bucket}/{object_path}",
-            data=body,
-            method="POST",
-            headers={
-                "Authorization": f"Bearer {self.service_role_key}",
-                "Content-Type": "application/json",
-            },
-        )
-        with urllib.request.urlopen(request, timeout=self.timeout) as response:
-            if response.status >= 400:
-                raise RuntimeError(f"Supabase Storage upload failed with HTTP {response.status}")
+    def __init__(
+        self,
+        s3_endpoint: str,
+        s3_region: str,
+        s3_access_key: str,
+        s3_secret_key: str,
+        s3_bucket: str = "llm-traces",
+    ):
+        self.s3_endpoint = s3_endpoint
+        self.s3_region = s3_region
+        self.s3_access_key = s3_access_key
+        self.s3_secret_key = s3_secret_key
+        self.s3_bucket = s3_bucket
 
     def record(self, **event: Any) -> str:
         trace_id = str(event.pop("trace_id", uuid4()))
@@ -113,9 +106,27 @@ class SupabaseStorageTraceSink:
             f"{now:%Y%m%dT%H%M%S}-{trace_id}.json"
         )
         body = json.dumps(row, sort_keys=True, default=str).encode("utf-8")
-        with self._lock:
-            try:
-                self._upload(object_path, body)
-            except Exception as exc:
-                logger.warning("trace upload to Supabase Storage failed for %s: %s", object_path, exc)
+        asyncio.create_task(self._upload_async(object_path, body))
         return trace_id
+
+    async def _upload_async(self, object_path: str, body: bytes) -> None:
+        try:
+            import aioboto3
+
+            session = aioboto3.Session(
+                aws_access_key_id=self.s3_access_key,
+                aws_secret_access_key=self.s3_secret_key,
+                region_name=self.s3_region,
+            )
+            async with session.client(
+                "s3",
+                endpoint_url=self.s3_endpoint,
+            ) as client:
+                await client.put_object(
+                    Bucket=self.s3_bucket,
+                    Key=object_path,
+                    Body=body,
+                    ContentType="application/json",
+                )
+        except Exception as exc:
+            logger.warning("trace upload to S3 failed for %s: %s", object_path, exc)
