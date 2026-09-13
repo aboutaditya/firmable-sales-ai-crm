@@ -27,6 +27,7 @@ class AdminController:
         require_authenticated_queue_user(user)
         import sys
         try:
+            print(f"DEBUG: Using pooler connection", file=sys.stderr)
             print(f"DEBUG: Calling list_queue_users()", file=sys.stderr)
             queue_users = {item["user_id"]: item for item in service.list_queue_users()}
             print(f"DEBUG: Got {len(queue_users)} queue users", file=sys.stderr)
