@@ -49,17 +49,18 @@ class AdminController:
             identities.setdefault(user_id, {}).update(item)
         result: list[AdminUser] = []
         for user_id in sorted(identities):
+            identity = identities[user_id]
             item = {
                 "user_id": user_id,
-                "email": None,
-                "display_name": None,
+                "email": identity.get("email"),
+                "display_name": identity.get("display_name"),
                 "role": "authenticated",
                 "min_exposure_score": 60,
                 "page_size": 1,
                 "assigned_count": 0,
             }
             item.update(queue_users.get(user_id, {}))
-            item.update(identities[user_id])
+            item.update(identity)
             result.append(AdminUser.model_validate(item))
         return AdminUserListResponse(items=result, count=len(result))
 
