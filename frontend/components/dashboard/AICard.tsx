@@ -24,7 +24,7 @@ export default function AICard({ aiOutputs, aiLoading, completedActions, onRunAi
 
   return (
     <section className="panel ai-card">
-      <div className="section-heading"><div><p className="eyebrow">AI ASSISTANCE</p><h2>Use AI after reviewing evidence</h2></div><span className="ai-badge">Optional</span></div>
+      <div className="section-heading"><div><p className="eyebrow">AI ASSISTANCE</p><h2>Use AI after reviewing evidence</h2></div></div>
       <div className="ai-actions"><button onClick={() => onRunAi("summary")} disabled={!!aiLoading || completedActions.summary}>{aiLoading === "summary" ? "Writing…" : "Account summary"}</button><button onClick={() => onRunAi("outreach")} disabled={!!aiLoading || completedActions.outreach}>{aiLoading === "outreach" ? "Writing…" : "Draft outreach"}</button></div>
       {hasAnyOutput && (
         <div className="ai-outputs">
