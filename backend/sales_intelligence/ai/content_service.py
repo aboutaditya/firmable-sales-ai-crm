@@ -1,14 +1,11 @@
 from __future__ import annotations
 
-import logging
 import time
 from pathlib import Path
 
 from sales_intelligence.ai.provider import LLMProvider, TextProviderResponse
 from sales_intelligence.ai.tracing import NullTraceSink, TraceSink
 from sales_intelligence.repositories import CompanyRepository
-
-logger = logging.getLogger(__name__)
 
 
 class AIContentService:
@@ -21,26 +18,18 @@ class AIContentService:
         self.trace_sink = trace_sink or NullTraceSink()
 
     def generate(self, company_id: str, feature: str, *, user_id: str | None = None, role: str | None = None) -> dict:
-        logger.info(f"generate: feature={feature}, company_id={company_id}, user_id={user_id}")
         if feature not in {"company_summary", "outreach"}:
-            logger.error(f"generate: unsupported feature={feature}")
             raise ValueError("unsupported AI content feature")
-        logger.debug(f"generate: fetching company data for company_id={company_id}")
         company = self.company_repository.get_company(company_id, user_id=user_id, role=role)
         if company is None:
-            logger.warning(f"generate: company not found for company_id={company_id}")
             raise LookupError("Company not found")
         if company.get("security_score", 0) < self.min_deterministic_score:
-            logger.warning(f"generate: company security_score below threshold for company_id={company_id}")
             raise PermissionError("Company does not meet the deterministic content threshold")
         prompt_version = f"{feature}-v1"
-        logger.debug(f"generate: checking cache for company_id={company_id}, feature={feature}, prompt_version={prompt_version}")
         cached = self.output_repository.get_latest(company_id, feature, prompt_version)
         if cached:
-            logger.info(f"generate: cache hit for company_id={company_id}, feature={feature}")
             return self._response(company_id, feature, cached, cached=True)
 
-        logger.debug(f"generate: reading prompt from {self.prompt_root / feature / 'v1.txt'}")
         prompt = (self.prompt_root / feature / "v1.txt").read_text(encoding="utf-8")
         started = time.perf_counter()
         request_payload = {
@@ -49,15 +38,11 @@ class AIContentService:
             "prompt_version": prompt_version,
         }
         try:
-            logger.debug(f"generate: calling LLM provider for feature={feature}, model={self.provider.model}")
             provider_response = self.provider.generate(company, prompt)
             if not isinstance(provider_response, TextProviderResponse):
-                logger.error(f"generate: invalid response type from provider: {type(provider_response)}")
                 raise TypeError("LLM provider returned an invalid text response")
-            logger.debug(f"generate: LLM call succeeded")
         except Exception as exc:
             latency_ms = round((time.perf_counter() - started) * 1000)
-            logger.error(f"generate: LLM provider error for feature={feature}: {type(exc).__name__}: {exc}", exc_info=True)
             self.trace_sink.record(
                 feature=feature,
                 model=self.provider.model,
@@ -74,9 +59,6 @@ class AIContentService:
             )
             raise
         latency_ms = round((time.perf_counter() - started) * 1000)
-        logger.info(f"generate: LLM call completed in {latency_ms}ms for feature={feature}")
-
-        trace_start = time.perf_counter()
         self.trace_sink.record(
             feature=feature,
             model=self.provider.model,
@@ -91,10 +73,6 @@ class AIContentService:
             status="success",
             error=None,
         )
-        trace_ms = round((time.perf_counter() - trace_start) * 1000)
-        logger.debug(f"generate: trace_sink.record() completed in {trace_ms}ms")
-
-        logger.debug(f"generate: saving output to repository for company_id={company_id}, feature={feature}")
         db_start = time.perf_counter()
         try:
             saved = self.output_repository.save(
@@ -108,18 +86,9 @@ class AIContentService:
                 cost_usd=provider_response.cost_usd,
                 latency_ms=latency_ms,
             )
-            db_ms = round((time.perf_counter() - db_start) * 1000)
-            logger.info(f"generate: output saved successfully in {db_ms}ms for company_id={company_id}, feature={feature}")
         except Exception as exc:
-            db_ms = round((time.perf_counter() - db_start) * 1000)
-            logger.error(f"generate: failed to save output after {db_ms}ms for company_id={company_id}, feature={feature}: {type(exc).__name__}: {exc}", exc_info=True)
             raise
-
-        response_start = time.perf_counter()
-        response = self._response(company_id, feature, saved, cached=False)
-        response_ms = round((time.perf_counter() - response_start) * 1000)
-        logger.debug(f"generate: _response() completed in {response_ms}ms")
-        return response
+        return self._response(company_id, feature, saved, cached=False)
 
     @staticmethod
     def _response(company_id: str, feature: str, output, *, cached: bool) -> dict:

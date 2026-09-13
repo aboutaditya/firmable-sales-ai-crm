@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-import logging
 import re
 import time
 from dataclasses import dataclass
@@ -10,8 +9,6 @@ from typing import Protocol
 import httpx
 
 from sales_intelligence.pydantic import QualificationResult
-
-logger = logging.getLogger(__name__)
 
 
 class LLMProviderError(RuntimeError):
@@ -103,7 +100,6 @@ class OpenAICompatibleProvider:
         if followup:
             messages.append({"role": "user", "content": followup})
         url = self.base_url.rstrip("/") + "/chat/completions"
-        logger.debug(f"LLM request: model={self.model}, url={url}, timeout={self.timeout_seconds}s, message_count={len(messages)}")
         response = None
         for attempt in range(self.max_retries + 1):
             try:
@@ -112,8 +108,6 @@ class OpenAICompatibleProvider:
                     headers["HTTP-Referer"] = self.http_referer
                 if self.app_title:
                     headers["X-OpenRouter-Title"] = self.app_title
-                logger.debug(f"LLM request attempt {attempt + 1}/{self.max_retries + 1}")
-                start = time.time()
                 response = httpx.post(
                     url,
                     headers=headers,
@@ -124,8 +118,6 @@ class OpenAICompatibleProvider:
                     },
                     timeout=self.timeout_seconds,
                 )
-                elapsed = time.time() - start
-                logger.info(f"LLM response: status={response.status_code}, time={elapsed:.1f}s")
                 if response.status_code not in {408, 429, 500, 502, 503, 504}:
                     if response.is_error:
                         raise _provider_error(response)
@@ -141,20 +133,17 @@ class OpenAICompatibleProvider:
         try:
             payload = response.json()
         except json.JSONDecodeError as exc:
-            logger.error(f"LLM provider returned invalid JSON: {response.text[:500]}")
             raise
 
         # Check for error in response body (OpenRouter returns 200 OK but includes error)
         if isinstance(payload, dict) and "error" in payload:
             error_info = payload.get("error", {})
             error_msg = error_info.get("message", "Unknown error") if isinstance(error_info, dict) else str(error_info)
-            logger.error(f"LLM provider returned error: {error_msg}")
             raise RuntimeError(f"LLM provider error: {error_msg}")
 
         try:
             content = payload["choices"][0]["message"]["content"]
         except (KeyError, TypeError, IndexError) as exc:
-            logger.error(f"LLM provider response missing expected structure. Response: {json.dumps(payload, default=str)[:1000]}")
             raise KeyError(f"choices: {exc}") from exc
         usage = payload.get("usage") or {}
         input_tokens = usage.get("prompt_tokens") or usage.get("input_tokens")

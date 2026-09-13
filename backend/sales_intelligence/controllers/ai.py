@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import logging
-
 from fastapi import APIRouter, Depends, HTTPException
 
 from sales_intelligence.ai.content_service import AIContentService
@@ -51,31 +49,21 @@ class AIController:
         user: AuthUser = Depends(require_roles("admin", "sales_manager", "sales_rep")),
         audit: AuditService = Depends(audit_service),
     ) -> AssessmentResponse:
-        logger.info(f"assess_company: company_id={company_id}, user_id={user.user_id}")
         if service is None:
-            logger.error("assess_company: AI assessment service not configured")
             raise HTTPException(
                 status_code=503,
                 detail="AI assessment is not configured; set DATABASE_URL, LLM_API_KEY, LLM_BASE_URL, and LLM_MODEL",
             )
         try:
-            logger.debug(f"assess_company: calling service.assess()")
             result = service.assess(company_id, user_id=user.user_id, role=user.access_role)
-            logger.info(f"assess_company: success, cached={result.cached}")
             audit.record(user_id=user.user_id, role=user.role, action="assess_company", resource_type="company", resource_id=company_id, metadata={"cached": result.cached})
             return result
         except LookupError as exc:
-            logger.warning(f"assess_company: LookupError: {exc}")
             raise HTTPException(status_code=404, detail=str(exc)) from exc
         except PermissionError as exc:
-            logger.warning(f"assess_company: PermissionError: {exc}")
             raise HTTPException(status_code=422, detail=str(exc)) from exc
         except LLMProviderError as exc:
-            logger.error(f"assess_company: LLMProviderError: {exc}")
             raise HTTPException(status_code=502, detail=str(exc)) from exc
-        except Exception as exc:
-            logger.error(f"assess_company: unexpected error: {type(exc).__name__}: {exc}", exc_info=True)
-            raise
 
     def generate_content(
         self,
@@ -85,31 +73,21 @@ class AIController:
         user: AuthUser,
         audit: AuditService,
     ) -> dict:
-        logger.info(f"generate_content: feature={feature}, company_id={company_id}, user_id={user.user_id}")
         if service is None:
-            logger.error(f"generate_content: AI content service not configured for feature={feature}")
             raise HTTPException(
                 status_code=503,
                 detail="AI content generation is not configured; set DATABASE_URL and LLM settings",
             )
         try:
-            logger.debug(f"generate_content: calling service.generate()")
             result = service.generate(company_id, feature, user_id=user.user_id, role=user.access_role)
-            logger.info(f"generate_content: success, feature={feature}, cached={result['cached']}, tokens_in={result.get('input_tokens')}, tokens_out={result.get('output_tokens')}")
             audit.record(user_id=user.user_id, role=user.role, action=f"generate_{feature}", resource_type="company", resource_id=company_id, metadata={"cached": result["cached"]})
             return result
         except LookupError as exc:
-            logger.warning(f"generate_content: LookupError for feature={feature}: {exc}")
             raise HTTPException(status_code=404, detail=str(exc)) from exc
         except PermissionError as exc:
-            logger.warning(f"generate_content: PermissionError for feature={feature}: {exc}")
             raise HTTPException(status_code=422, detail=str(exc)) from exc
         except LLMProviderError as exc:
-            logger.error(f"generate_content: LLMProviderError for feature={feature}: {exc}")
             raise HTTPException(status_code=502, detail=str(exc)) from exc
-        except Exception as exc:
-            logger.error(f"generate_content: unexpected error for feature={feature}: {type(exc).__name__}: {exc}", exc_info=True)
-            raise
 
     def company_summary(
         self,
@@ -119,7 +97,6 @@ class AIController:
         user: AuthUser = Depends(require_roles("admin", "sales_manager", "sales_rep")),
         audit: AuditService = Depends(audit_service),
     ) -> AIContentResponse:
-        logger.info(f"company_summary: company_id={company_id}, user_id={user.user_id}")
         return self.generate_content("company_summary", company_id, service, user, audit)
 
     def outreach_draft(
@@ -130,7 +107,6 @@ class AIController:
         user: AuthUser = Depends(require_roles("admin", "sales_manager", "sales_rep")),
         audit: AuditService = Depends(audit_service),
     ) -> AIContentResponse:
-        logger.info(f"outreach_draft: company_id={company_id}, user_id={user.user_id}")
         return self.generate_content("outreach", company_id, service, user, audit)
 
 
