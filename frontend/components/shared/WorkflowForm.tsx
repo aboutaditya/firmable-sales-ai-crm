@@ -20,7 +20,7 @@ export type WorkflowFormProps = {
   onSkip?: () => void;
 };
 
-export default function WorkflowForm({ values, saving, disabled = false, onChange, onSaveDisposition, onLogCall, onSkip }: WorkflowFormProps) {
+export default function WorkflowForm({ values, saving, disabled = false, onChange, onSaveDisposition, onSkip }: WorkflowFormProps) {
   const blocked = saving || disabled;
   return (
     <>
