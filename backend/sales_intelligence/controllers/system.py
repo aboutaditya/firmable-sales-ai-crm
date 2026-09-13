@@ -16,7 +16,10 @@ class SystemController:
         self.router.add_api_route("/health/ready", self.ready, methods=["GET"], response_model=ReadinessResponse, tags=["system"])
 
     def health(self) -> HealthResponse:
-        return HealthResponse(service=self.settings.app_name)
+        has_service_role = bool(self.settings.supabase_service_role_key)
+        response = HealthResponse(service=self.settings.app_name)
+        response.service_role_key_loaded = has_service_role
+        return response
 
     def live(self) -> HealthResponse:
         return HealthResponse(service=self.settings.app_name)

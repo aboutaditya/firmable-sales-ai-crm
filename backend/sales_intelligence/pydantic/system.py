@@ -6,6 +6,7 @@ from pydantic import BaseModel
 class HealthResponse(BaseModel):
     status: str = "ok"
     service: str
+    service_role_key_loaded: bool = False
 
 
 class ReadinessResponse(BaseModel):
