@@ -17,6 +17,13 @@ dependencies = [
   "PyJWT>=2.8,<3",
 ]
 
+[project.optional-dependencies]
+analytics = [
+  "duckdb>=1.0,<2",
+  "pyarrow>=15,<16",
+  "zstandard>=0.21,<1",
+]
+
 [project.scripts]
 sales-intelligence = "sales_intelligence.commands:main"
 
