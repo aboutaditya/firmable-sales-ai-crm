@@ -45,11 +45,11 @@ class AIController:
     def assess_company(
         self,
         company_id: str,
+        request: Request,
         service: AIQualificationService | None = Depends(ai_service),
         _: None = Depends(ai_rate_limit),
         user: AuthUser = Depends(require_roles("admin", "sales_manager", "sales_rep")),
         audit: AuditService = Depends(audit_service),
-        request: Request = None,
     ) -> AssessmentResponse:
         request_id = getattr(request.state, "request_id", "unknown") if request else "unknown"
 
@@ -85,7 +85,7 @@ class AIController:
         service: AIContentService | None,
         user: AuthUser,
         audit: AuditService,
-        request: Request | None = None,
+        request: Request,
     ) -> dict:
         request_id = getattr(request.state, "request_id", "unknown") if request else "unknown"
 
@@ -117,22 +117,22 @@ class AIController:
     def company_summary(
         self,
         company_id: str,
+        request: Request,
         service: AIContentService | None = Depends(content_service),
         _: None = Depends(ai_rate_limit),
         user: AuthUser = Depends(require_roles("admin", "sales_manager", "sales_rep")),
         audit: AuditService = Depends(audit_service),
-        request: Request = Depends(lambda r: r),
     ) -> AIContentResponse:
         return self.generate_content("company_summary", company_id, service, user, audit, request)
 
     def outreach_draft(
         self,
         company_id: str,
+        request: Request,
         service: AIContentService | None = Depends(content_service),
         _: None = Depends(ai_rate_limit),
         user: AuthUser = Depends(require_roles("admin", "sales_manager", "sales_rep")),
         audit: AuditService = Depends(audit_service),
-        request: Request = Depends(lambda r: r),
     ) -> AIContentResponse:
         return self.generate_content("outreach", company_id, service, user, audit, request)
 

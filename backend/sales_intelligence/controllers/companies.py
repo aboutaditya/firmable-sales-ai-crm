@@ -23,6 +23,7 @@ class CompanyController:
 
     def list_companies(
         self,
+        request: Request,
         country: str | None = Query(default=None),
         min_score: int | None = Query(default=None, ge=0, le=100),
         industry: str | None = Query(default=None),
@@ -34,7 +35,6 @@ class CompanyController:
         service: CompanyService = Depends(company_service),
         user: AuthUser = Depends(require_roles("admin", "sales_manager", "sales_rep")),
         audit: AuditService = Depends(audit_service),
-        request: Request = Depends(lambda r: r),
     ) -> CompanyListResponse:
         request_id = getattr(request.state, "request_id", "unknown")
 
@@ -62,10 +62,10 @@ class CompanyController:
     def get_company(
         self,
         company_id: str,
+        request: Request,
         service: CompanyService = Depends(company_service),
         user: AuthUser = Depends(require_roles("admin", "sales_manager", "sales_rep")),
         audit: AuditService = Depends(audit_service),
-        request: Request = Depends(lambda r: r),
     ) -> Company:
         request_id = getattr(request.state, "request_id", "unknown")
 
@@ -88,10 +88,10 @@ class CompanyController:
         self,
         company_id: str,
         assignment: AssignmentRequest,
+        request: Request,
         service: QueueService = Depends(queue_service),
         user: AuthUser = Depends(require_roles("admin", "sales_manager")),
         audit: AuditService = Depends(audit_service),
-        request: Request = Depends(lambda r: r),
     ) -> dict:
         request_id = getattr(request.state, "request_id", "unknown")
 

@@ -58,10 +58,10 @@ class QueueController:
 
     def next_queue_lead(
         self,
+        request: Request,
         service: QueueService = Depends(queue_service),
         user: AuthUser = Depends(require_roles("admin", "sales_manager", "sales_rep")),
         audit: AuditService = Depends(audit_service),
-        request: Request = Depends(lambda r: r),
     ) -> QueueNextResponse:
         request_id = getattr(request.state, "request_id", "unknown")
         require_authenticated_queue_user(user)
@@ -105,10 +105,10 @@ class QueueController:
         self,
         company_id: str,
         update: DispositionUpdate,
+        request: Request,
         service: QueueService = Depends(queue_service),
         user: AuthUser = Depends(require_roles("admin", "sales_manager", "sales_rep")),
         audit: AuditService = Depends(audit_service),
-        request: Request = Depends(lambda r: r),
     ) -> QueueLead:
         request_id = getattr(request.state, "request_id", "unknown")
         require_authenticated_queue_user(user)
@@ -138,10 +138,10 @@ class QueueController:
         self,
         company_id: str,
         activity: CallActivityRequest,
+        request: Request,
         service: QueueService = Depends(queue_service),
         user: AuthUser = Depends(require_roles("admin", "sales_manager", "sales_rep")),
         audit: AuditService = Depends(audit_service),
-        request: Request = Depends(lambda r: r),
     ) -> QueueLead:
         request_id = getattr(request.state, "request_id", "unknown")
         require_authenticated_queue_user(user)
