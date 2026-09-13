@@ -103,6 +103,7 @@ class OpenAICompatibleProvider:
         if followup:
             messages.append({"role": "user", "content": followup})
         url = self.base_url.rstrip("/") + "/chat/completions"
+        logger.debug(f"LLM request: model={self.model}, url={url}, timeout={self.timeout_seconds}s, message_count={len(messages)}")
         response = None
         for attempt in range(self.max_retries + 1):
             try:
@@ -111,6 +112,8 @@ class OpenAICompatibleProvider:
                     headers["HTTP-Referer"] = self.http_referer
                 if self.app_title:
                     headers["X-OpenRouter-Title"] = self.app_title
+                logger.debug(f"LLM request attempt {attempt + 1}/{self.max_retries + 1}")
+                start = time.time()
                 response = httpx.post(
                     url,
                     headers=headers,
@@ -121,6 +124,8 @@ class OpenAICompatibleProvider:
                     },
                     timeout=self.timeout_seconds,
                 )
+                elapsed = time.time() - start
+                logger.info(f"LLM response: status={response.status_code}, time={elapsed:.1f}s")
                 if response.status_code not in {408, 429, 500, 502, 503, 504}:
                     if response.is_error:
                         raise _provider_error(response)
