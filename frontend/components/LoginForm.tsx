@@ -1,13 +1,18 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useState, useEffect } from "react";
 import { supabase } from "../lib/supabase";
+import { healthCheck } from "../lib/api";
 
 export default function LoginForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    healthCheck();
+  }, []);
 
   async function submit(event: FormEvent) {
     event.preventDefault(); setBusy(true); setError("");
