@@ -73,6 +73,8 @@ def build_trace_sink(settings: Settings) -> TraceSink:
 
 
 def build_container(settings: Settings) -> AppContainer:
+    import sys
+    print(f"DEBUG: SUPABASE_SERVICE_ROLE_KEY = {settings.supabase_service_role_key[:20] if settings.supabase_service_role_key else 'MISSING'}...", file=sys.stderr)
     session_factory = create_session_factory(settings.database_url) if settings.database_url else None
     repository = PostgresCompanyRepository(session_factory) if session_factory else None
     queue_repository = PostgresQueueRepository(session_factory) if session_factory else None
