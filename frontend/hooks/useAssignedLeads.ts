@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
-import { QueueLead, listAssignedLeads, recordCall, updateDisposition } from "../lib/api";
+import { QueueLead, listAssignedLeads, updateDisposition } from "../lib/api";
 import { dispositionLabels } from "../lib/dispositions";
 import { useAuth } from "../components/AuthGate";
 import { WorkflowFormValues } from "../components/shared/WorkflowForm";
@@ -21,7 +21,7 @@ export function useAssignedLeads() {
   const [notice, setNotice] = useState("");
   const [detailLead, setDetailLead] = useState<QueueLead | null>(null);
   const [workflowLead, setWorkflowLead] = useState<QueueLead | null>(null);
-  const [workflowValues, setWorkflowValues] = useState<WorkflowFormValues>({ disposition: "not_contacted", callOutcome: "call_attempted", notes: "", followUp: "" });
+  const [workflowValues, setWorkflowValues] = useState<WorkflowFormValues>({ disposition: "not_contacted", notes: "", followUp: "" });
 
   function load(targetPage = page) {
     setError("");
@@ -50,14 +50,13 @@ export function useAssignedLeads() {
   function openWorkflow(lead: QueueLead) {
     setDetailLead(null);
     setWorkflowLead(lead);
-    setWorkflowValues({ disposition: lead.disposition ?? "not_contacted", callOutcome: "call_attempted", notes: lead.notes ?? "", followUp: lead.next_follow_up_at ? lead.next_follow_up_at.slice(0, 10) : "" });
+    setWorkflowValues({ disposition: lead.disposition ?? "not_contacted", notes: lead.notes ?? "", followUp: lead.next_follow_up_at ? lead.next_follow_up_at.slice(0, 10) : "" });
     setError("");
   }
 
   function updateWorkflow(patch: Partial<WorkflowFormValues>) {
     setWorkflowValues(values => ({
       disposition: patch.disposition ?? values.disposition,
-      callOutcome: patch.callOutcome ?? values.callOutcome,
       notes: patch.notes ?? values.notes,
       followUp: patch.followUp ?? values.followUp,
     }));
@@ -85,28 +84,6 @@ export function useAssignedLeads() {
     }
   }
 
-  async function logCall(event: FormEvent) {
-    event.preventDefault();
-    if (!workflowLead || isLocalDemo || saving) return;
-    setSaving(true);
-    setError("");
-    try {
-      await recordCall(workflowLead.company.company_id, {
-        outcome: workflowValues.callOutcome,
-        notes: workflowValues.notes || undefined,
-        next_follow_up_at: workflowValues.followUp ? new Date(`${workflowValues.followUp}T09:00:00`).toISOString() : undefined,
-      });
-      setNotice(`Call logged: ${dispositionLabels[workflowValues.callOutcome]}`);
-      setWorkflowValues(values => ({ ...values, disposition: workflowValues.callOutcome }));
-      setWorkflowLead(null);
-      goTo(page);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to log call");
-    } finally {
-      setSaving(false);
-    }
-  }
-
   return {
     leads,
     page,
@@ -128,6 +105,5 @@ export function useAssignedLeads() {
     openWorkflow,
     goTo,
     saveDisposition,
-    logCall,
   };
 }
