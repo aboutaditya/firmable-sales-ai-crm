@@ -13,8 +13,6 @@ from sales_intelligence.api.content_dependencies import content_service
 from sales_intelligence.api.rate_limit import ai_rate_limit
 from sales_intelligence.services.audit import AuditService
 
-logger = logging.getLogger(__name__)
-
 
 class AIController:
     def __init__(self):
