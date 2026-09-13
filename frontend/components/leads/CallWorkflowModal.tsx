@@ -12,14 +12,13 @@ type CallWorkflowModalProps = {
   disabled: boolean;
   onValuesChange: (patch: Partial<WorkflowFormValues>) => void;
   onSaveDisposition: (event: FormEvent) => void;
-  onLogCall: (event: FormEvent) => void;
   onClose: () => void;
 };
 
-export default function CallWorkflowModal({ lead, values, saving, disabled, onValuesChange, onSaveDisposition, onLogCall, onClose }: CallWorkflowModalProps) {
+export default function CallWorkflowModal({ lead, values, saving, disabled, onValuesChange, onSaveDisposition, onClose }: CallWorkflowModalProps) {
   return (
     <Modal eyebrow="CALL WORKFLOW" title="Record the human outcome" subtitle={`${lead.company.organization || lead.company.domain} · disposition and call history stay separate from AI assistance.`} onClose={onClose}>
-      <WorkflowForm values={values} saving={saving} disabled={disabled} onChange={onValuesChange} onSaveDisposition={onSaveDisposition} onLogCall={onLogCall} />
+      <WorkflowForm values={values} saving={saving} disabled={disabled} onChange={onValuesChange} onSaveDisposition={onSaveDisposition} />
     </Modal>
   );
 }

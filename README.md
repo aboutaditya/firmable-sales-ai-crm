@@ -1,173 +1,184 @@
 # Sales Intelligence
 
-This repository contains the first implementation slice of the AI Sales Intelligence platform described in [HLD Sales Intelligence.md](HLD%20Sales%20Intelligence.md).
+An AI-assisted sales intelligence platform that ingests large volumes of
+internet-exposure observations (Shodan-style JSONL), aggregates them into
+company profiles, scores each company by its security-exposure risk, and lets
+sales teams find, qualify, and work their best leads.
 
-Track implementation progress in the [implementation checklist](docs/implementation-checklist.md).
+**Start here:** [IMPLEMENTATION_GUIDE.md](IMPLEMENTATION_GUIDE.md) maps each task requirement to what was built, where it lives, and how to use it.  
+**System overview:** See [docs/HLD.md](docs/HLD.md) for architecture and [docs/HOW_YOU_BUILD.md](docs/HOW_YOU_BUILD.md) for design rationale.  
+**Component details:** Per-component plans live in [docs/plan/](docs/plan/).
 
-## Quick start
+## What it offers
 
-The easiest local workflow is through the root `Makefile`:
+- **Streaming ETL pipeline** (`sales-intelligence etl`) — streams JSONL (plain,
+  gzip, or zstd-compressed) from local files or remote object URLs, normalizes
+  observations, folds them into company profiles, and exports Parquet or JSONL.
+  Resumable via checkpoints and tracked through dataset run manifests.
+- **Deterministic exposure scoring** — a versioned, fully configurable model
+  (`backend/sales_intelligence/scoring.py`) that ranks companies by exposed
+  RDP/databases/Exchange, vulnerabilities, EOL products, and security tags.
+  Override weights with a JSON config, no code changes.
+- **Ad-hoc query CLI** (`sales-intelligence query`) — filter a built dataset by
+  country, minimum score, or company ID and print ranked JSON rows.
+- **FastAPI backend** — analytics over Parquet (DuckDB) or PostgreSQL/Supabase
+  (SQLAlchemy), with structured errors and `X-Request-ID` tracing.
+- **AI workflows** — per-company account assessments, summaries, and outreach
+  drafts through an LLM provider (OpenAI-compatible or OpenRouter), with
+  caching and optional LLM-call tracing.
+- **Sales queue** — reps claim and work assigned leads; dispositions and call
+  activity are recorded and audited.
+- **Admin + auth** — Supabase-compatible JWT authentication with role-based
+  access (`admin`, `sales_manager`, `sales_rep`) and admin user management.
+- **Next.js frontend** — searchable, ranked company dashboard with lead-queue
+  workflows; a local-demo mode runs against the small bundled fixture.
+- **Evaluations** — measurable account-scoring quality against a hand-labelled
+  case set (`make eval-*`, see [evals/README.md](evals/README.md)).
+
+## Repository layout
+
+- `backend/sales_intelligence/` — ETL, scoring, API, services, models
+- `frontend/` — Next.js sales interface
+- `data/demo/` and `data/sample/` — small committed fixtures
+- `docs/` — high-level design, component plans, deployment guide
+- `evals/` — evaluation datasets, harnesses, and results
+- `postman/` — ready-to-import API collection
+
+## Prerequisites
+
+- Python 3.10+
+- Node.js (only if you use the frontend)
+- A PostgreSQL/Supabase project (only for queue, admin, and AI features)
+
+## Quick start (local demo)
+
+The demo runs entirely offline: it builds a dataset from
+`data/demo/observations.jsonl`, starts the API in Parquet-only mode, and skips
+authentication.
 
 ```bash
-make init
-make etl
-make test
-make start
+cp .env.example .env    # defaults already work for the demo
+make init               # install backend + frontend dependencies
+make etl                # build data/processed/companies.parquet from demo data
+make start              # API at http://127.0.0.1:8000, frontend at http://127.0.0.1:3000
 ```
 
-This starts the API at `http://127.0.0.1:8000` and the frontend at
-`http://127.0.0.1:3000`. Both `localhost:3000` and `127.0.0.1:3000` are allowed
-origins for local development. Use `make help` to see all available targets. Database
-migrations and AI features remain opt-in through `make migrate` and the relevant
-environment variables.
+Verify health and browse companies:
 
 ```bash
-python3 -m pip install -r requirements-dev.txt
-cp .env.example .env
-python3 -m unittest discover -s tests -v
-sales-intelligence etl data/demo/observations.jsonl --output data/processed/demo-companies.parquet --dataset-version demo-v1
+curl http://127.0.0.1:8000/api/v1/health
+curl "http://127.0.0.1:8000/api/v1/companies?min_score=60&limit=10"
 ```
 
-For a bounded remote smoke test, add `--max-records 1000`; the stream closes after that many observations. The default local/demo path uses the reproducible fixture in `data/demo/` so the dashboard is populated immediately.
+Search `http://127.0.0.1:3000` for companies in the dashboard. An importable
+Postman collection with every endpoint is in `postman/`.
 
-The Makefile also enables resumable ETL checkpoints. If an ETL run is interrupted,
-rerun `make etl` with the same source and dataset version to resume from the last
-checkpoint. Change `MAX_RECORDS` to increase the total target, for example
-`make etl MAX_RECORDS=2000`.
+## Configuration
 
-The ETL command writes Parquet by default. Remote dataset URLs and service credentials are loaded from `.env`; use [`.env.example`](.env.example) as the template. Local paths may still be passed for fixtures and tests.
+Backend settings load from `.env` (see [`.env.example`](.env.example)):
+
+| Variable | Purpose |
+| --- | --- |
+| `RAW_DATASET_URL` | Remote production source for `make etl` (JSONL / `.zst`) |
+| `ANALYTICAL_DATASET` | Output Parquet path served by the API |
+| `DATABASE_URL` | PostgreSQL/Supabase connection (enables queue, admin, audit) |
+| `LLM_API_KEY`, `LLM_BASE_URL`, `LLM_MODEL` | LLM provider for assess/summary/outreach |
+| `AUTH_REQUIRED` | `false` = open demo mode, `true` = JWT-protected routes |
+| `SUPABASE_JWT_SECRET` / `SUPABASE_JWKS_URL` | Verify Supabase bearer tokens |
+| `SUPABASE_SERVICE_ROLE_KEY` | Backend-only key for the admin user list |
+| `AI_RATE_LIMIT_PER_MINUTE` | Rate limit for AI endpoints |
+| `SCORING_CONFIG_PATH` | JSON file overriding exposure-scoring weights |
+
+Frontend variables live in `frontend/.env.local`
+(see `frontend/.env.example`): `NEXT_PUBLIC_API_URL`,
+`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, and
+`NEXT_PUBLIC_LOCAL_DEMO=true` for the offline demo.
+
+## CLI reference
+
+The `sales-intelligence` CLI (installed via `make init-backend`) has three commands:
 
 ```bash
-python3 -m pip install -r requirements.txt
-sales-intelligence etl data/demo/observations.jsonl --output data/processed/demo-companies.parquet --dataset-version demo-v1
+# Build a dataset. Omit the source to use RAW_DATASET_URL; rerun to resume.
+sales-intelligence etl data/demo/observations.jsonl \
+  --output data/processed/demo-companies.parquet \
+  --dataset-version demo-v1 --max-records 1000 \
+  --checkpoint data/processed/demo-companies.parquet.checkpoint.json
+
+# Query a built dataset.
+sales-intelligence query data/processed/companies.parquet \
+  --min-score 60 --country US --limit 20
+
+# Sync qualified companies into PostgreSQL/Supabase (idempotent).
+DATABASE_URL='postgresql://...' sales-intelligence sync \
+  data/processed/companies.parquet --min-score 60 --dataset-version 2026-09-07 \
+  --batch-size 1000
 ```
 
-For the real dataset, set `RAW_DATASET_URL` in `.env`. The reader accepts JSONL and `.zst`-compressed JSONL.
+Apply database migrations first: `DATABASE_URL='postgresql://...' alembic -c backend/alembic.ini upgrade head`.
 
-Apply the SQLAlchemy/Alembic migrations to Supabase/PostgreSQL, then sync only qualified companies:
+## API
 
-```bash
-DATABASE_URL='postgresql://...' ./scripts/apply_migrations.sh
+The service is FastAPI; interactive docs at `http://127.0.0.1:8000/docs`.
+All routes are under `/api/v1` (system routes are always public).
 
-sales-intelligence sync \
-  data/processed/demo-companies.parquet \
-  --min-score 60 \
-  --dataset-version 2026-09-07
-```
+| Method | Route | Access |
+| --- | --- | --- |
+| GET | `/health`, `/health/live`, `/health/ready` | public |
+| GET | `/companies` | manager/admin (reps use the queue) |
+| GET | `/companies/{company_id}` | manager/admin/rep |
+| POST | `/companies/{company_id}/assign` | manager/admin |
+| POST | `/companies/{company_id}/assess` | manager/admin/rep |
+| POST | `/companies/{company_id}/summary` | manager/admin/rep |
+| POST | `/companies/{company_id}/outreach` | manager/admin/rep |
+| GET/PATCH | `/me/preferences` | any authenticated user |
+| GET | `/me/queue/next` | authenticated (claims the next lead) |
+| GET | `/me/queue` | authenticated |
+| POST | `/me/queue/{company_id}/disposition` | authenticated |
+| POST | `/me/queue/{company_id}/calls` | authenticated |
+| GET | `/admin/users` | admin |
+| PATCH | `/users/{user_id}/queue-preferences` | admin |
 
-The sync reads `DATABASE_URL` from `.env` and is idempotent. Install the runtime dependencies when enabling this command:
+List-company filters: `country`, `min_score`, `industry`,
+`min_employee_count`, repeated `signal` (`vulnerability`, `critical`, `rdp`,
+`database`, `exchange`, `eol`), `limit`, `offset`, and `cursor` for
+pagination — a
+`next_cursor` is returned and the frontend uses it to page.
 
-```bash
-python3 -m pip install -r requirements.txt
-```
+### Authentication and roles
 
-Application database access uses typed SQLAlchemy ORM models and sessions. DuckDB remains the SQL query engine for analytical Parquet data.
+With `AUTH_REQUIRED=true`, requests must carry a Supabase-compatible JWT
+(`Authorization: Bearer ...`); queue and admin endpoints always require a real
+token. Health checks stay public. Company details and AI access respect the
+caller's role and, for reps, their company assignment. Reps cannot browse
+`/companies` — they work their assigned one-lead queue, and admins set each
+rep's minimum exposure score via `/users/{user_id}/queue-preferences`.
 
-After changing an ORM model, create and apply a migration with:
+### AI features
 
-```bash
-alembic revision --autogenerate -m "describe schema change"
-alembic upgrade head
-```
+`/assess`, `/summary`, and `/outreach` need `DATABASE_URL` plus
+`LLM_API_KEY`, `LLM_BASE_URL`, and `LLM_MODEL` configured together. The LLM
+must produce strict JSON; results are cached in the database, and every call
+can be traced to `data/traces/llm_calls.jsonl` or a Supabase Storage bucket.
+Prompts live in `backend/sales_intelligence/prompts/`.
 
-Migrations live in `sales_intelligence/backend/migrations`; the old root-level SQL migration files are no longer used.
-
-## Backend service
-
-Run the API against the generated analytical dataset:
-
-```bash
-ANALYTICAL_DATASET=data/processed/demo-companies.parquet uvicorn sales_intelligence.backend.main:app --reload
-```
-
-When `DATABASE_URL` is set, the API automatically reads companies and signals from PostgreSQL/Supabase instead of Parquet:
-
-```bash
-DATABASE_URL='postgresql://...' uvicorn sales_intelligence.backend.main:app --host 0.0.0.0 --port 8000
-```
-
-Available endpoints:
-
-- `GET /api/v1/health`
-- `GET /api/v1/health/live`
-- `GET /api/v1/health/ready`
-- `GET /api/v1/companies?country=US&min_score=40&limit=100`
-- `GET /api/v1/companies/{company_id}`
-- `POST /api/v1/companies/{company_id}/assess`
-- `POST /api/v1/companies/{company_id}/summary`
-- `POST /api/v1/companies/{company_id}/outreach`
-- `GET /api/v1/me/preferences`
-- `PATCH /api/v1/me/preferences`
-- `PATCH /api/v1/users/{user_id}/queue-preferences` (admin only)
-- `GET /api/v1/me/queue/next`
-- `POST /api/v1/me/queue/{company_id}/disposition`
-- `POST /api/v1/me/queue/{company_id}/calls`
-- `GET /docs`
-
-The AI endpoints require `DATABASE_URL`, `LLM_API_KEY`, `LLM_BASE_URL`, and `LLM_MODEL` in `.env`. Account assessments use `prompts/account_scoring/v1.txt`; summaries and outreach use their corresponding versioned prompts and cache results in the application database.
-
-Every response includes an `X-Request-ID` header. API validation and server errors use a consistent JSON error shape. Configure `CORS_ORIGINS` and `AI_RATE_LIMIT_PER_MINUTE` in `.env`.
-
-Set `AUTH_REQUIRED=true` with `SUPABASE_JWT_SECRET` to protect business and AI routes with Supabase-compatible bearer JWTs. Health and readiness endpoints remain public. Set the backend-only `SUPABASE_SERVICE_ROLE_KEY` to let the admin panel list all Supabase Auth users; without it, the panel lists users known through queue assignments and preferences.
-
-In the authenticated product flow, `/me/queue/next` claims the highest-scoring
-company that is not yet assigned to anyone, assigns it to the caller, and
-returns it for follow-up work. The per-user minimum exposure score is set by
-admins (`PATCH /users/{user_id}/queue-preferences`) and surfaces in queue
-status responses, but it does not gate which unassigned company is claimed
-next. Representatives cannot browse `/companies`, and company detail/AI
-access is checked against their assignment. Managers and admins can still use
-the assignment endpoint to distribute accounts explicitly. With
-`NEXT_PUBLIC_LOCAL_DEMO=true` the frontend intentionally falls back to the
-small Parquet fixture and marks workflow writes as unavailable.
-
-Measure the account-scoring quality against the 25-case hand-labelled set:
+## Testing and evaluation
 
 ```bash
-make eval-openrouter     # v1 predictions over all 25 cases (resumable)
-make eval-report         # precision / recall / F1 / MAE vs the labels
-make eval-openrouter-v2  # v2 predictions (resumable)
+make test                # Python tests + frontend build
+python -m pytest         # backend + eval test suites
+make eval-openrouter     # v1 account-scoring predictions (resumable)
+make eval-report         # precision/recall/F1 vs hand-labelled cases
 make eval-compare        # v2 metrics vs the v1 baseline
 ```
 
-Recorded results and known weaknesses are described in
-[`evals/README.md`](evals/README.md); the v2 run is currently measured on the
-18-case overlap because the free-model daily quota interrupted the rest.
-
-The `scripts/` files are compatibility wrappers. New automation should use the `sales-intelligence` command or import the application services directly.
-
-The frontend is under [frontend/](frontend/). It uses Supabase browser authentication and expects `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, and `NEXT_PUBLIC_API_URL` in `frontend/.env.local`.
-
 ## Deployment
 
-The runtime dependency manifest is [requirements.txt](requirements.txt). The included [Dockerfile](Dockerfile) installs it during the image build and starts the FastAPI service:
+Backend and frontend deploy to Vercel (the backend runs as a Python function
+via `api/index.py` + `vercel.json`; the frontend is a separate project under
+`frontend/`). PostgreSQL, authentication, and LLM-trace storage come from
+Supabase. Full deployment instructions and environment references are in
+[docs/plan/11-deployment.md](docs/plan/11-deployment.md).
 
-```bash
-docker build -t sales-intelligence .
-docker run --rm -p 8000:8000 \
-  -e ANALYTICAL_DATASET=/app/data/processed/demo-companies.parquet \
-  -v "$PWD/data/processed:/app/data/processed:ro" \
-  sales-intelligence
-```
-
-For a non-container deployment, install dependencies before starting the service:
-
-```bash
-python3 -m pip install -r requirements.txt
-python3 -m pip install .
-uvicorn sales_intelligence.backend.main:app --host 0.0.0.0 --port 8000
-```
-
-## Current scope
-
-The current slice implements streaming ingestion, normalization, company
-aggregation, deterministic exposure scoring, DuckDB queries,
-Supabase/PostgreSQL synchronization, the FastAPI service, versioned AI
-assessment/outreach workflows, and the Next.js sales interface. The local demo
-uses `data/demo/observations.jsonl`; the provided remote dataset remains the
-production source configured through `RAW_DATASET_URL`. The account-scoring
-model is measured against a 25-case labelled set (`evals/README.md`).
-Deployment instructions and configuration for Railway + Vercel are in
-[`docs/deployment-plan.md`](docs/deployment-plan.md).
-
-Do not commit the raw 11GB dataset. `data/raw/` is ignored; commit only small fixtures under `data/sample/`.
+Do not commit production datasets: `data/raw/` is ignored — commit only small
+fixtures under `data/sample/`.

@@ -1,76 +1,114 @@
 # Outreach Draft Skill
 
-Version: `outreach-v1`
-
 ## Purpose
 
-Draft a concise first-touch message that gives a salesperson a credible next
-step based on observed security evidence. The draft is a reviewable suggestion,
-not an automated send.
+Draft a first-touch email that introduces a security observation to a prospect in a credible, evidence-led way. The draft is **always reviewable by a salesperson before send** — never auto-dispatch.
 
 ## Trigger
 
-Run after an account is selected for outreach and has passed deterministic
-prequalification. A salesperson should review the draft before sending it.
+Run after:
+1. Account has passed deterministic prequalification (exposure score ≥ threshold).
+2. Account-scoring skill has returned a priority (HIGH/MEDIUM/LOW).
+3. Sales rep selects the account for outreach.
+
+Do not run for LOW-priority accounts or those that fail prequalification.
 
 ## Inputs
 
-- Company profile and domain.
-- Observed security signals and deterministic exposure score.
-- Optional validated account-scoring result.
-- Prompt file: `prompts/outreach/v1.txt`.
-- Model and cost configuration.
+- **Company profile**: domain, organization, country, industry, employee count.
+- **Observed signals**: vulnerability counts, critical count, exposed service flags (RDP/database/Exchange/SSH), EOL products, asset counts, signal dates.
+- **Deterministic score**: exposure score (0–100), score_version.
+- **Account scoring result** (optional): `priority`, `ai_score`, `confidence` from the account-scoring skill.
+- **Prompt template**: `backend/sales_intelligence/prompts/outreach/*.txt` (selected by `prompt_version` at runtime).
 
 ## Output
 
-Return a subject line and body under 150 words. Do not include a fabricated
-contact name, breach, initiative, product claim, or unobserved vulnerability.
+Return plain text with two parts:
+
+```text
+Subject: [specific, evidence-based subject line]
+
+Body: [1–3 paragraphs, max 150 words total, conversational tone]
+```
+
+**Requirements:**
+- Subject line is specific and mentions one concrete observed signal (not generic like "Security Question").
+- Body leads with the strongest observed signal in plain language.
+- Body acknowledges the company may not know they're exposed ("We maintain a database...").
+- Body offers a low-friction next step (call, benchmark review, risk assessment).
+- No fabricated details: contact names, breach claims, products, initiatives, or unobserved vulnerabilities.
+- Tone is professional but not stiff; assume the reader is busy.
 
 ## Rules and validation
 
-1. Lead with one concrete observed signal.
-2. Explain business relevance cautiously; do not state that compromise occurred.
-3. Say when evidence is incomplete or stale.
-4. End with a low-friction call to action.
-5. Keep the output concise and suitable for human review.
-6. Persist model, prompt version, token usage, latency, cost, and trace ID.
+1. **Lead with evidence.** Name one concrete signal: "Your RDP service is externally accessible" not "Your security posture."
+2. **Credibility first.** Explain why you know this and why it matters without overstating.
+3. **No breach claims.** "Exposed service" ✓; "You were hacked" ✗. "Not evidence of compromise" ✓.
+4. **No invented details.** No contact names, product pitches, deployment assumptions, or unobserved signals.
+5. **Clear CTA.** End with one low-friction invitation: "Would a 15-min call be useful?" or "Should we schedule a quick review?"
+6. **Length.** Subject line + body ≤ 150 words total; body ≤ 120 words.
+7. **Tracing.** Persist model, prompt_version, input/output tokens, latency_ms, cost_usd, and trace_id for all calls.
 
-## Dependencies
+## Integration seams
 
-- `prompts/outreach/v1.txt`
-- `sales_intelligence.backend.ai.content_service.AIContentService`
-- A trace sink for successful and failed calls.
+1. **LLM provider** — renders prompt with `{{company_profile}}` and `{{account_scoring_result}}` interpolation; returns plain-text output.
+2. **Output parser** — extracts subject line (first line after "Subject:") and body; validates word count and CTA presence.
+3. **Human gate** — sales rep reviews and approves before sending via email, LinkedIn, or phone.
+4. **Trace sink** — records model, prompt_version, tokens, cost, and output for cost tracking and output-quality evals.
+5. **Caching** — cache by (company_id, prompt_version) to avoid regenerating the same draft.
 
-## Worked invocation
+## Worked example
 
-Input:
-
+**Input:**
 ```json
 {
-  "company_id": "acme.com",
-  "organization": "Acme Corp",
-  "security_score": 75,
-  "critical_vulnerability_count": 1,
-  "exposed_rdp": true,
-  "exposed_database": true,
-  "eol_product_count": 1
+  "company_id": "widgetco.com",
+  "organization": "Widget Manufacturing Inc.",
+  "country": "US",
+  "industry": "Manufacturing",
+  "employee_count": 250,
+  "signals": {
+    "critical_vulnerabilities": 0,
+    "vulnerabilities": 8,
+    "exposed_rdp": true,
+    "exposed_database": false,
+    "eol_products": 1,
+    "assets": 22
+  },
+  "account_scoring": {
+    "priority": "MEDIUM",
+    "ai_score": 58,
+    "confidence": 0.75
+  }
 }
 ```
 
-Invocation:
-
+**Expected output:**
 ```text
-Draft outreach-v1 for Acme Corp using only the supplied profile and observed
-signals. Mention one evidence-backed finding and request a short conversation.
+Subject: Question about your externally-accessible RDP service
+
+Hi there,
+
+We monitor external infrastructure exposure and noticed an RDP service accessible from the internet associated with Widget Manufacturing. We're not suggesting any compromise—just flagging it in case it's unintentional.
+
+A quick benchmark of your external exposure vs. similar manufacturers in your region might be useful. Would a 15-minute call work?
+
+Thanks,
+[Sales rep]
 ```
 
-Expected shape:
+**Strengths of this output:**
+- Subject line is specific (mentions RDP, not generic "question").
+- Opens with evidence ("RDP service...from the internet") in plain language.
+- Credibility statement ("We monitor external...") without overstating.
+- Reassurance ("We're not suggesting...") prevents alarm and breach rumors.
+- CTA is specific and low-friction ("15-minute call").
+- No invented details: no contact name, no assumed products, no claims of intent.
 
-```text
-Subject: Question about an externally exposed Acme service
+## Cost & scaling
 
-Hi there — we noticed an externally exposed RDP service associated with Acme,
-alongside an observed database exposure. This is not evidence of compromise,
-but it may be useful to validate whether those services are intentional and
-protected. Would a brief review of the external attack surface be useful?
-```
+- **Trigger guard:** Run only on HIGH/MEDIUM accounts (not LOW) to avoid spend on weak signals.
+- **Caching:** Cache by (company_id, prompt_version) → no recomputation.
+- **Model selection:** Outreach generation is more sensitive than classification; use a stronger model (e.g., `gpt-4-turbo` or `claude-3-sonnet`) than account-scoring.
+- **Token efficiency:** Target ≤300 input tokens, ≤150 output tokens; monitor for verbose models.
+- **Human gate:** Every draft is reviewed before send — this is not a silent background process.

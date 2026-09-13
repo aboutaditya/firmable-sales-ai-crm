@@ -1,0 +1,62 @@
+{
+  "cases": 10,
+  "clean_pass_accuracy": 1.0,
+  "mislabeled": [],
+  "per_criterion": {
+    "covers_signal": {
+      "accuracy": 1.0,
+      "fn": 0,
+      "fp": 0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "tn": 1,
+      "tp": 9
+    },
+    "has_cta": {
+      "accuracy": 1.0,
+      "fn": 0,
+      "fp": 0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "tn": 1,
+      "tp": 7
+    },
+    "has_subject": {
+      "accuracy": 1.0,
+      "fn": 0,
+      "fp": 0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "tn": 0,
+      "tp": 8
+    },
+    "no_fabrication": {
+      "accuracy": 1.0,
+      "fn": 0,
+      "fp": 0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "tn": 1,
+      "tp": 9
+    },
+    "no_invented_signal": {
+      "accuracy": 1.0,
+      "fn": 0,
+      "fp": 0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "tn": 2,
+      "tp": 8
+    },
+    "word_count_ok": {
+      "accuracy": 1.0,
+      "fn": 0,
+      "fp": 0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "tn": 1,
+      "tp": 9
+    }
+  },
+  "run_at": "2026-09-12T21:12:13.015801+00:00"
+}

@@ -32,7 +32,7 @@ export default function AssignedLeadsPage() {
         </section>
       )}
 
-      {queue.workflowLead && <CallWorkflowModal lead={queue.workflowLead} values={queue.workflowValues} saving={queue.saving} disabled={queue.isLocalDemo} onValuesChange={queue.updateWorkflow} onSaveDisposition={queue.saveDisposition} onLogCall={queue.logCall} onClose={() => queue.setWorkflowLead(null)} />}
+      {queue.workflowLead && <CallWorkflowModal lead={queue.workflowLead} values={queue.workflowValues} saving={queue.saving} disabled={queue.isLocalDemo} onValuesChange={queue.updateWorkflow} onSaveDisposition={queue.saveDisposition} onClose={() => queue.setWorkflowLead(null)} />}
       {queue.detailLead && <LeadDetailModal lead={queue.detailLead} onWorkflow={queue.openWorkflow} onClose={() => queue.setDetailLead(null)} />}
     </main>
   );
