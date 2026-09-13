@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+import logging
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 
 from sales_intelligence.api.audit_dependencies import audit_service
 from sales_intelligence.api.auth import AuthUser, require_authenticated_queue_user, require_roles
@@ -16,6 +17,8 @@ from sales_intelligence.pydantic import (
 )
 from sales_intelligence.services.audit import AuditService
 from sales_intelligence.services.queue import QueueService
+
+logger = logging.getLogger("sales_intelligence.queue")
 
 
 class QueueController:
@@ -58,16 +61,22 @@ class QueueController:
         service: QueueService = Depends(queue_service),
         user: AuthUser = Depends(require_roles("admin", "sales_manager", "sales_rep")),
         audit: AuditService = Depends(audit_service),
+        request: Request = Depends(lambda r: r),
     ) -> QueueNextResponse:
+        request_id = getattr(request.state, "request_id", "unknown")
         require_authenticated_queue_user(user)
         try:
+            logger.info("next_queue_lead_start", extra={"request_id": request_id, "user_id": user.user_id})
             result = service.next_assigned_company(user.user_id)
             queue_status = service.queue_status(user.user_id)
         except RuntimeError as exc:
+            logger.error("next_queue_lead_error", extra={"request_id": request_id, "user_id": user.user_id, "error": str(exc)}, exc_info=True)
             raise HTTPException(status_code=503, detail=str(exc)) from exc
         if result is None:
+            logger.info("next_queue_lead_empty", extra={"request_id": request_id, "user_id": user.user_id})
             return QueueNextResponse(**queue_status, message="No unassigned companies are available right now.")
         audit.record(user_id=user.user_id, role=user.role, action="claim_next_lead", resource_type="company", resource_id=result["company"]["company_id"])
+        logger.info("next_queue_lead_success", extra={"request_id": request_id, "user_id": user.user_id, "company_id": result["company"]["company_id"]})
         return QueueNextResponse(lead=QueueLead.model_validate(result), **queue_status, message="Lead claimed")
 
     def list_my_queue(
@@ -99,9 +108,12 @@ class QueueController:
         service: QueueService = Depends(queue_service),
         user: AuthUser = Depends(require_roles("admin", "sales_manager", "sales_rep")),
         audit: AuditService = Depends(audit_service),
+        request: Request = Depends(lambda r: r),
     ) -> QueueLead:
+        request_id = getattr(request.state, "request_id", "unknown")
         require_authenticated_queue_user(user)
         try:
+            logger.info("update_disposition_start", extra={"request_id": request_id, "company_id": company_id, "disposition": update.disposition})
             result = service.update_disposition(
                 company_id,
                 user.user_id,
@@ -109,14 +121,18 @@ class QueueController:
                 notes=update.notes,
                 next_follow_up_at=update.next_follow_up_at,
             )
+            audit.record(user_id=user.user_id, role=user.role, action="update_disposition", resource_type="company", resource_id=company_id, metadata={"disposition": update.disposition})
+            logger.info("update_disposition_success", extra={"request_id": request_id, "company_id": company_id, "disposition": update.disposition})
+            return QueueLead.model_validate(result)
         except PermissionError as exc:
+            logger.warning("update_disposition_forbidden", extra={"request_id": request_id, "company_id": company_id, "error": str(exc)})
             raise HTTPException(status_code=403, detail=str(exc)) from exc
         except LookupError as exc:
+            logger.warning("update_disposition_not_found", extra={"request_id": request_id, "company_id": company_id, "error": str(exc)})
             raise HTTPException(status_code=404, detail=str(exc)) from exc
         except RuntimeError as exc:
+            logger.error("update_disposition_error", extra={"request_id": request_id, "company_id": company_id, "error": str(exc)}, exc_info=True)
             raise HTTPException(status_code=503, detail=str(exc)) from exc
-        audit.record(user_id=user.user_id, role=user.role, action="update_disposition", resource_type="company", resource_id=company_id, metadata={"disposition": update.disposition})
-        return QueueLead.model_validate(result)
 
     def record_call_activity(
         self,
@@ -125,9 +141,12 @@ class QueueController:
         service: QueueService = Depends(queue_service),
         user: AuthUser = Depends(require_roles("admin", "sales_manager", "sales_rep")),
         audit: AuditService = Depends(audit_service),
+        request: Request = Depends(lambda r: r),
     ) -> QueueLead:
+        request_id = getattr(request.state, "request_id", "unknown")
         require_authenticated_queue_user(user)
         try:
+            logger.info("record_call_start", extra={"request_id": request_id, "company_id": company_id, "outcome": activity.outcome})
             result = service.record_call(
                 company_id,
                 user.user_id,
@@ -135,14 +154,18 @@ class QueueController:
                 notes=activity.notes,
                 next_follow_up_at=activity.next_follow_up_at,
             )
+            audit.record(user_id=user.user_id, role=user.role, action="record_call", resource_type="company", resource_id=company_id, metadata={"outcome": activity.outcome})
+            logger.info("record_call_success", extra={"request_id": request_id, "company_id": company_id, "outcome": activity.outcome})
+            return QueueLead.model_validate(result)
         except PermissionError as exc:
+            logger.warning("record_call_forbidden", extra={"request_id": request_id, "company_id": company_id, "error": str(exc)})
             raise HTTPException(status_code=403, detail=str(exc)) from exc
         except LookupError as exc:
+            logger.warning("record_call_not_found", extra={"request_id": request_id, "company_id": company_id, "error": str(exc)})
             raise HTTPException(status_code=404, detail=str(exc)) from exc
         except RuntimeError as exc:
+            logger.error("record_call_error", extra={"request_id": request_id, "company_id": company_id, "error": str(exc)}, exc_info=True)
             raise HTTPException(status_code=503, detail=str(exc)) from exc
-        audit.record(user_id=user.user_id, role=user.role, action="record_call", resource_type="company", resource_id=company_id, metadata={"outcome": activity.outcome})
-        return QueueLead.model_validate(result)
 
 
 def build_queue_router() -> APIRouter:

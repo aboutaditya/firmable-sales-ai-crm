@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import logging
 import sys
+import traceback
 from datetime import datetime, timezone
 
 
@@ -14,9 +15,23 @@ class JsonFormatter(logging.Formatter):
             "logger": record.name,
             "message": record.getMessage(),
         }
-        for key in ("request_id", "method", "path", "status_code", "duration_ms", "dataset_version", "processed_count", "company_count", "run_id", "batch_number", "batch_size", "offset", "row_count", "min_score", "synced_count", "row_number", "company_id"):
+
+        # Add all extra fields
+        for key in (
+            "request_id", "method", "path", "query", "status_code", "duration_ms",
+            "dataset_version", "processed_count", "company_count", "run_id",
+            "batch_number", "batch_size", "offset", "row_count", "min_score",
+            "synced_count", "row_number", "company_id", "detail", "error",
+            "error_type", "error_message", "errors", "cached", "feature",
+            "user_id", "role", "action", "resource_type", "resource_id",
+        ):
             if hasattr(record, key):
                 payload[key] = getattr(record, key)
+
+        # Add exception info if present
+        if record.exc_info:
+            payload["exception"] = "".join(traceback.format_exception(*record.exc_info))
+
         return json.dumps(payload, default=str)
 
 
