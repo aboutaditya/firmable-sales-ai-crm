@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import asyncio
 import json
 import logging
 import re
@@ -70,92 +69,3 @@ def _prompt_slug(event: dict[str, Any]) -> str:
     return slug or "llm"
 
 
-class S3TraceSink:
-    """Upload each trace record to S3-compatible storage (e.g., Supabase Storage).
-
-    Objects are stored one-per-record at
-    ``traces/<prompt-slug>/<year>/<month>/<day>/<timestamp>-<trace_id>.json``
-    so concurrent serverless instances never clobber each other and the
-    hierarchy is browsable per prompt and day.
-    """
-
-    def __init__(
-        self,
-        s3_endpoint: str,
-        s3_region: str,
-        s3_access_key: str,
-        s3_secret_key: str,
-        s3_bucket: str = "llm-traces",
-    ):
-        self.s3_endpoint = s3_endpoint
-        self.s3_region = s3_region
-        self.s3_access_key = s3_access_key
-        self.s3_secret_key = s3_secret_key
-        self.s3_bucket = s3_bucket
-
-    def record(self, **event: Any) -> str:
-        trace_id = str(event.pop("trace_id", uuid4()))
-        row = {
-            "trace_id": trace_id,
-            "timestamp": datetime.now(timezone.utc).isoformat(),
-            **event,
-        }
-        now = datetime.now(timezone.utc)
-        object_path = (
-            f"traces/{_prompt_slug(row)}/{now:%Y}/{now:%m}/{now:%d}/"
-            f"{now:%Y%m%dT%H%M%S}-{trace_id}.json"
-        )
-        body = json.dumps(row, sort_keys=True, default=str).encode("utf-8")
-        try:
-            loop = asyncio.get_running_loop()
-            loop.create_task(self._upload_async(object_path, body))
-        except RuntimeError:
-            try:
-                import threading
-                thread = threading.Thread(target=self._upload_sync, args=(object_path, body), daemon=True)
-                thread.start()
-            except Exception as exc:
-                logger.warning("trace upload to S3 failed to start: %s", exc)
-        return trace_id
-
-    async def _upload_async(self, object_path: str, body: bytes) -> None:
-        try:
-            import aioboto3
-
-            session = aioboto3.Session(
-                aws_access_key_id=self.s3_access_key,
-                aws_secret_access_key=self.s3_secret_key,
-                region_name=self.s3_region,
-            )
-            async with session.client(
-                "s3",
-                endpoint_url=self.s3_endpoint,
-            ) as client:
-                await client.put_object(
-                    Bucket=self.s3_bucket,
-                    Key=object_path,
-                    Body=body,
-                    ContentType="application/json",
-                )
-        except Exception as exc:
-            logger.warning("trace upload to S3 failed for %s: %s", object_path, exc)
-
-    def _upload_sync(self, object_path: str, body: bytes) -> None:
-        try:
-            import boto3
-
-            client = boto3.client(
-                "s3",
-                endpoint_url=self.s3_endpoint,
-                region_name=self.s3_region,
-                aws_access_key_id=self.s3_access_key,
-                aws_secret_access_key=self.s3_secret_key,
-            )
-            client.put_object(
-                Bucket=self.s3_bucket,
-                Key=object_path,
-                Body=body,
-                ContentType="application/json",
-            )
-        except Exception as exc:
-            logger.warning("trace upload to S3 failed for %s: %s", object_path, exc)

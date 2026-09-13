@@ -10,7 +10,7 @@ from sales_intelligence.ai.content_service import AIContentService
 from sales_intelligence.ai.provider import OpenAICompatibleProvider
 from sales_intelligence.ai.repository import SqlAlchemyAssessmentRepository
 from sales_intelligence.ai.service import AIQualificationService
-from sales_intelligence.ai.tracing import JsonlTraceSink, NullTraceSink, S3TraceSink, TraceSink
+from sales_intelligence.ai.tracing import JsonlTraceSink, NullTraceSink, TraceSink
 from sales_intelligence.api.rate_limit import InMemoryRateLimiter
 from sales_intelligence.config import Settings
 from sales_intelligence.db.session import create_session_factory
@@ -56,16 +56,6 @@ class AppContainer:
 
 def build_trace_sink(settings: Settings) -> TraceSink:
     """Compose trace sink from settings."""
-    if settings.llm_trace_backend == "s3":
-        if not all((settings.s3_endpoint, settings.s3_region, settings.s3_access_key, settings.s3_secret_key)):
-            raise ValueError("S3 trace backend requires S3_ENDPOINT, S3_REGION, S3_ACCESS_KEY, and S3_SECRET_KEY")
-        return S3TraceSink(
-            s3_endpoint=settings.s3_endpoint,
-            s3_region=settings.s3_region,
-            s3_access_key=settings.s3_access_key,
-            s3_secret_key=settings.s3_secret_key,
-            s3_bucket=settings.llm_trace_bucket,
-        )
     if settings.llm_trace_backend == "jsonl":
         return JsonlTraceSink(settings.llm_trace_path)
     return NullTraceSink()

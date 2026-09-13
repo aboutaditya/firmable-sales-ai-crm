@@ -26,10 +26,6 @@ class Settings:
     llm_trace_path: Path = Path("data/traces/llm_calls.jsonl")
     llm_trace_backend: str = "jsonl"
     llm_trace_bucket: str = "llm-traces"
-    s3_endpoint: str | None = None
-    s3_region: str | None = None
-    s3_access_key: str | None = None
-    s3_secret_key: str | None = None
     ai_min_score: int = 0
     cors_origins: tuple[str, ...] = ()
     ai_rate_limit_per_minute: int = 30
@@ -65,10 +61,6 @@ class Settings:
             llm_trace_path=Path(os.getenv("LLM_TRACE_PATH", "data/traces/llm_calls.jsonl")),
             llm_trace_backend=os.getenv("LLM_TRACE_BACKEND", "jsonl"),
             llm_trace_bucket=os.getenv("LLM_TRACE_BUCKET", "llm-traces"),
-            s3_endpoint=os.getenv("S3_ENDPOINT"),
-            s3_region=os.getenv("S3_REGION"),
-            s3_access_key=os.getenv("S3_ACCESS_KEY"),
-            s3_secret_key=os.getenv("S3_SECRET_KEY"),
             ai_min_score=int(os.getenv("AI_MIN_SCORE", "0")),
             cors_origins=tuple(
                 origin.strip()
